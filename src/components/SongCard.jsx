@@ -110,7 +110,7 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
                 key={n}
                 onClick={() => handleHebrewLine(n)}
                 className={`w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl transition-all ${
-                  active ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' : 'bg-cyan-900 hover:bg-cyan-800 text-white'
+                  active ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/30' : 'bg-violet-900 hover:bg-violet-800 text-white'
                 }`}
               >
                 שורה {n}
@@ -148,8 +148,8 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
             <p className="text-gray-600 text-xs italic">No lines revealed</p>
           )}
         </div>
-        <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-cyan-900/40 flex flex-col justify-center overflow-hidden">
-          <p className="text-xs text-cyan-500 uppercase tracking-widest mb-1">Hebrew</p>
+        <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-violet-900/40 flex flex-col justify-center overflow-hidden">
+          <p className="text-xs text-violet-400 uppercase tracking-widest mb-1">Hebrew</p>
           {hebrewCount > 0 ? (
             <div className="flex flex-col gap-0.5 overflow-hidden text-right" dir="rtl">
               {hebrewLines.slice(0, hebrewCount).map((line, i) => (
@@ -166,20 +166,20 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
       {!revealed && (
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 uppercase tracking-widest">Song</label>
-            <input
-              value={guessTitle}
-              onChange={e => setGuessTitle(e.target.value)}
-              placeholder="Title..."
-              className="bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-500 uppercase tracking-widest">Artist</label>
             <input
               value={guessArtist}
               onChange={e => setGuessArtist(e.target.value)}
               placeholder="Artist..."
+              className="bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500 uppercase tracking-widest">Song</label>
+            <input
+              value={guessTitle}
+              onChange={e => setGuessTitle(e.target.value)}
+              placeholder="Title..."
               className="bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500"
             />
           </div>
