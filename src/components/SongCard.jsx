@@ -48,6 +48,7 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
   }, [isPlaying])
 
   function charge(key, amount) {
+    if (revealed) return
     if (paidClues.has(key)) return
     setPaidClues(prev => new Set([...prev, key]))
     setPenalties(prev => prev + amount)
@@ -245,8 +246,8 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
         </div>
       </div>
 
-      {/* Fixed-height section — inputs before reveal, summary after. Same height always. */}
-      <div className="h-[108px]">
+      {/* Switchable section — inputs before reveal, summary after */}
+      <div>
         {!revealed ? (
           <div className="grid grid-cols-3 gap-2 sm:gap-3 h-full" dir="rtl">
             <div className="flex flex-col gap-1">
@@ -269,32 +270,56 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
             </div>
           </div>
         ) : (
-          /* Summary — two columns matching the reference design */
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl h-full flex overflow-hidden">
-            {/* Left: round score */}
-            <div className="flex flex-col items-center justify-center gap-0.5 px-4 border-r border-gray-700 min-w-[80px]">
-              <span className="text-gray-500 text-xs">סיבוב</span>
-              <span dir="ltr" className={`text-3xl font-black ${roundScore >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {roundScore >= 0 ? '+' : ''}{roundScore}
-              </span>
-            </div>
-            {/* Right: result rows */}
-            <div className="flex-1 flex flex-col justify-center gap-1 px-3 py-2">
-              <ResultRow label="שיר" guess={guessTitle} answer={song.song_title} correct={results?.title} points={results?.title ? '+10' : '0'} />
-              <ResultRow label="אמן" guess={guessArtist} answer={song.artist_name} correct={results?.artist} points={results?.artist ? '+6' : '0'} />
-              <ResultRow
-                label="שנה"
-                answer={guessYear.trim() ? `${guessYear}  (${song.publish_year})` : song.publish_year}
-                correct={results?.yearGuessed && results?.yearPoints > 0}
-                points={results?.yearPoints >= 0 ? `+${results.yearPoints}` : `${results?.yearPoints}`}
-              />
-              <div className="border-t border-gray-700/60 pt-1 flex justify-between items-center">
-                <span dir="ltr" className="text-red-400 text-xs font-semibold">-{penalties}</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-gray-600 text-xs">|</span>
-                  <span className="bg-gray-800 text-gray-300 text-xs px-2 py-0.5 rounded-md">קנסות</span>
+          <div className="flex flex-col gap-2">
+            <p className="text-center text-gray-400 text-xs uppercase tracking-widest">התשובה שלך</p>
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden flex" dir="rtl">
+
+              {/* RIGHT column: ✗/✓ + label + correct answer + points */}
+              <div className="flex flex-col justify-center gap-1 px-3 py-2 flex-1 border-l border-gray-700">
+                {[
+                  { label: 'שיר', answer: song.song_title,  correct: results?.title,  points: results?.title  ? '+10' : '0' },
+                  { label: 'אמן', answer: song.artist_name, correct: results?.artist, points: results?.artist ? '+6'  : '0' },
+                  { label: 'שנה',
+                    answer: song.publish_year,
+                    correct: results?.yearGuessed && results?.yearPoints > 0,
+                    points: results?.yearPoints >= 0 ? `+${results.yearPoints}` : `${results?.yearPoints}` },
+                ].map(({ label, answer, correct, points }) => {
+                  const ptColor = points?.startsWith('+') && points !== '+0' ? 'text-green-400' : points === '0' || points === '+0' ? 'text-gray-500' : 'text-red-400'
+                  return (
+                    <div key={label} className="flex items-center gap-1.5 text-xs">
+                      <span className={`font-bold flex-shrink-0 ${correct ? 'text-green-400' : 'text-red-400'}`}>{correct ? '✓' : '✗'}</span>
+                      <span className="text-gray-400 flex-shrink-0 w-6 text-right">{label}</span>
+                      <span className="text-white font-medium truncate flex-1 text-right">{answer}</span>
+                      <span dir="ltr" className={`font-bold flex-shrink-0 w-7 text-left ${ptColor}`}>{points}</span>
+                    </div>
+                  )
+                })}
+                {/* קנסות footer inside right column */}
+                <div className="border-t border-gray-700/50 pt-1 flex justify-between items-center">
+                  <div className="flex items-center gap-1">
+                    <span className="text-gray-600 text-xs">|</span>
+                    <span className="bg-gray-800 text-gray-300 text-xs px-2 py-0.5 rounded-md">קנסות</span>
+                  </div>
+                  <span dir="ltr" className="text-red-400 text-xs font-semibold">-{penalties}</span>
                 </div>
               </div>
+
+              {/* MIDDLE column: player's guesses */}
+              <div className="flex flex-col justify-center gap-1 px-3 py-2 border-l border-gray-700 min-w-[120px] max-w-[200px]">
+                {[guessTitle, guessArtist, guessYear].map((g, i) => (
+                  <p key={i} className="text-gray-400 text-xs text-center truncate">{g || '—'}</p>
+                ))}
+                <div className="border-t border-transparent pt-1" />
+              </div>
+
+              {/* LEFT column: סיבוב + score */}
+              <div className="flex flex-col items-center justify-center gap-0.5 px-4 min-w-[72px]">
+                <span className="text-gray-500 text-xs">סיבוב</span>
+                <span dir="ltr" className={`text-2xl font-black ${roundScore >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {roundScore >= 0 ? '+' : ''}{roundScore}
+                </span>
+              </div>
+
             </div>
           </div>
         )}
@@ -337,33 +362,6 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
   )
 }
 
-// Layout: [points] [answer / strikethrough] [✓✗  label]
-// Left=points, middle=answer, right=label+checkmark
-function ResultRow({ label, guess, answer, correct, points }) {
-  const pointColor = points?.startsWith('+') ? 'text-green-400' : points === '0' ? 'text-gray-500' : 'text-red-400'
-  return (
-    <div className="grid grid-cols-[auto_1fr_auto] gap-2 items-center text-xs sm:text-sm">
-      {/* Left: score */}
-      <span dir="ltr" className={`font-bold flex-shrink-0 ${pointColor}`}>{points}</span>
-
-      {/* Middle: correct answer + strikethrough guess */}
-      <div className="flex items-center gap-1 justify-end overflow-hidden">
-        {!correct && guess && (
-          <span className="text-gray-500 line-through truncate">{guess}</span>
-        )}
-        <span className="text-white font-medium truncate">{answer}</span>
-      </div>
-
-      {/* Right: label + checkmark */}
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <span className={`font-bold ${correct ? 'text-green-400' : 'text-red-400'}`}>
-          {correct ? '✓' : '✗'}
-        </span>
-        <span className="text-gray-500 w-7 text-right">{label}</span>
-      </div>
-    </div>
-  )
-}
 
 function PlayIcon() {
   return (
