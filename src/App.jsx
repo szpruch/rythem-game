@@ -25,7 +25,7 @@ export default function App() {
   }, [])
 
   function pickRandomSong(songList, used) {
-    const available = songList.filter(s => !used.has(s.id))
+    const available = songList.filter(s => !used.has(s.youtube_url))
     if (available.length === 0) return null
     return available[Math.floor(Math.random() * available.length)]
   }
@@ -43,7 +43,7 @@ export default function App() {
 
   function nextSong() {
     const newUsed = new Set(usedIds)
-    newUsed.add(currentSong.id)
+    newUsed.add(currentSong.youtube_url)
     const song = pickRandomSong(songs, newUsed)
     setUsedIds(newUsed)
     if (!song) {
@@ -105,7 +105,7 @@ export default function App() {
   return (
     <div className={BG}>
       <SongCard
-        key={currentSong.id}
+        key={currentSong.youtube_url}
         song={currentSong}
         revealed={revealed}
         onDone={(roundScore) => { setTotalScore(s => s + roundScore); setRevealed(true) }}

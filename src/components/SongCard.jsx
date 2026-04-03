@@ -14,6 +14,37 @@ function formatTime(secs) {
   return `${m} : ${String(s).padStart(2, '0')}`
 }
 
+function formatArtists(names) {
+  if (names.length <= 1) return names[0] || ''
+  if (names.length === 2) return `${names[0]} ו${names[1]}`
+  return `${names[0]}, ${names[1]} ו${names[2]}`
+}
+
+function getPermutations(arr) {
+  if (arr.length <= 1) return [arr]
+  const result = []
+  for (let i = 0; i < arr.length; i++) {
+    const rest = [...arr.slice(0, i), ...arr.slice(i + 1)]
+    for (const perm of getPermutations(rest)) result.push([arr[i], ...perm])
+  }
+  return result
+}
+
+function checkArtistMatch(guess, names) {
+  if (!guess || !guess.trim() || names.length === 0) return { points: 0, correct: false, partial: false }
+  if (names.length === 1) {
+    const match = isCloseMatch(guess, names[0])
+    return { points: match ? 6 : 0, correct: match, partial: false }
+  }
+  // Full match: guess fuzzy-matches any ordering of all artists joined
+  const fullMatch = getPermutations(names).some(perm => isCloseMatch(guess, formatArtists(perm)))
+  if (fullMatch) return { points: 6, correct: true, partial: false }
+  // Partial: at least one individual artist matches
+  const anyMatch = names.some(name => isCloseMatch(guess, name))
+  if (anyMatch) return { points: 3, correct: false, partial: true }
+  return { points: 0, correct: false, partial: false }
+}
+
 function speak(text, lang) {
   if (!window.speechSynthesis) return
   window.speechSynthesis.cancel()
@@ -37,9 +68,13 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
   const [penalties, setPenalties] = useState(0)
   const [roundScore, setRoundScore] = useState(null)
   const [showHelp, setShowHelp] = useState(false)
+  const [yearError, setYearError] = useState(false)
+  const [freeHintUsed, setFreeHintUsed] = useState(false)
 
   const hebrewLines = [song.hebrew_line_1, song.hebrew_line_2, song.hebrew_line_3].filter(Boolean)
   const englishLines = [song.english_line_1, song.english_line_2, song.english_line_3].filter(Boolean)
+  const artistNames = [song.artist_name_1, song.artist_name_2, song.artist_name_3].filter(Boolean)
+  const artistDisplay = formatArtists(artistNames)
 
   useEffect(() => {
     if (!isPlaying) return
@@ -51,7 +86,11 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
     if (revealed) return
     if (paidClues.has(key)) return
     setPaidClues(prev => new Set([...prev, key]))
-    setPenalties(prev => prev + amount)
+    if (amount === 1 && !freeHintUsed) {
+      setFreeHintUsed(true)
+    } else {
+      setPenalties(prev => prev + amount)
+    }
   }
 
   function togglePlay() {
@@ -88,12 +127,23 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
   }
 
   function handleReveal() {
-    const titleCorrect = isCloseMatch(guessTitle, song.song_title)
-    const artistCorrect = isCloseMatch(guessArtist, song.artist_name)
+    if (!guessYear.trim()) { setYearError(true); return }
+
+    // Normal assignment
+    const normalTitle = isCloseMatch(guessTitle, song.song_title)
+    const normalArtist = checkArtistMatch(guessArtist, artistNames)
+    // Swapped assignment (player wrote artist in title field and vice versa)
+    const swappedTitle = isCloseMatch(guessArtist, song.song_title)
+    const swappedArtist = checkArtistMatch(guessTitle, artistNames)
+
+    const useSwapped = (swappedTitle ? 10 : 0) + swappedArtist.points > (normalTitle ? 10 : 0) + normalArtist.points
+    const titleCorrect = useSwapped ? swappedTitle : normalTitle
+    const artistResult = useSwapped ? swappedArtist : normalArtist
+
     const yrScore = yearScore(guessYear, song.publish_year)
-    const bonuses = (titleCorrect ? 10 : 0) + (artistCorrect ? 6 : 0) + yrScore
+    const bonuses = (titleCorrect ? 10 : 0) + artistResult.points + yrScore
     const score = bonuses - penalties
-    setResults({ title: titleCorrect, artist: artistCorrect, yearPoints: yrScore, yearGuessed: !!guessYear.trim() })
+    setResults({ title: titleCorrect, artist: artistResult.correct, artistPartial: artistResult.partial, artistPoints: artistResult.points, yearPoints: yrScore, yearGuessed: !!guessYear.trim() })
     setRoundScore(score)
     onDone(score)
   }
@@ -168,7 +218,10 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
                 }`}
               >
                 שורה {n}
-                {!paid && <span dir="ltr" className="absolute top-1 right-2 text-xs text-cyan-300/60">-{LINE_PENALTY[n]}</span>}
+                {!paid && (n === 1
+                  ? <span className="absolute top-1 right-2 text-xs text-cyan-300/60">{freeHintUsed ? '-1' : 'חינם'}</span>
+                  : <span dir="ltr" className="absolute top-1 right-2 text-xs text-cyan-300/60">-{LINE_PENALTY[n]}</span>
+                )}
               </button>
             )
           })}
@@ -190,7 +243,10 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
                 }`}
               >
                 שורה {n}
-                {!paid && <span dir="ltr" className="absolute top-1 right-2 text-xs text-violet-300/60">-{LINE_PENALTY[n]}</span>}
+                {!paid && (n === 1
+                  ? <span className="absolute top-1 right-2 text-xs text-violet-300/60">{freeHintUsed ? '-1' : 'חינם'}</span>
+                  : <span dir="ltr" className="absolute top-1 right-2 text-xs text-violet-300/60">-{LINE_PENALTY[n]}</span>
+                )}
               </button>
             )
           })}
@@ -211,7 +267,10 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
                   <span>שניות</span>
                   <span dir="ltr">{s}</span>
                 </span>
-                {!paid && <span dir="ltr" className="absolute top-1 right-2 text-xs text-green-300/60">-{DURATION_PENALTY[s]}</span>}
+                {!paid && (s === 3
+                  ? <span className="absolute top-1 right-2 text-xs text-green-300/60">{freeHintUsed ? '-1' : 'חינם'}</span>
+                  : <span dir="ltr" className="absolute top-1 right-2 text-xs text-green-300/60">-{DURATION_PENALTY[s]}</span>
+                )}
               </button>
             )
           })}
@@ -263,10 +322,12 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
                 className="bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500 text-right" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 tracking-widest text-right">שנה</label>
-              <input value={guessYear} onChange={e => setGuessYear(e.target.value)}
+              <label className={`text-xs tracking-widest text-right ${yearError ? 'text-red-400' : 'text-gray-500'}`}>
+                {yearError ? '⚠ חובה!' : 'שנה'}
+              </label>
+              <input value={guessYear} onChange={e => { setGuessYear(e.target.value); setYearError(false) }}
                 placeholder="שנה..." maxLength={4}
-                className="bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500 text-right" />
+                className={`bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border focus:outline-none focus:border-indigo-500 text-right ${yearError ? 'border-red-500 animate-pulse' : 'border-gray-700'}`} />
             </div>
           </div>
         ) : (
@@ -278,16 +339,16 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
               <div className="flex flex-col justify-center gap-1 px-3 py-2 flex-1 border-l border-gray-700">
                 {[
                   { label: 'שיר', answer: song.song_title,  correct: results?.title,  points: results?.title  ? '+10' : '0' },
-                  { label: 'אמן', answer: song.artist_name, correct: results?.artist, points: results?.artist ? '+6'  : '0' },
+                  { label: 'אמן', answer: artistDisplay, correct: results?.artist, partial: results?.artistPartial, points: results?.artist ? '+6' : results?.artistPartial ? '+3' : '0' },
                   { label: 'שנה',
                     answer: song.publish_year,
                     correct: results?.yearGuessed && results?.yearPoints > 0,
                     points: results?.yearPoints >= 0 ? `+${results.yearPoints}` : `${results?.yearPoints}` },
-                ].map(({ label, answer, correct, points }) => {
-                  const ptColor = points?.startsWith('+') && points !== '+0' ? 'text-green-400' : points === '0' || points === '+0' ? 'text-gray-500' : 'text-red-400'
+                ].map(({ label, answer, correct, partial, points }) => {
+                  const ptColor = points?.startsWith('+') && points !== '+0' ? (partial ? 'text-amber-400' : 'text-green-400') : points === '0' || points === '+0' ? 'text-gray-500' : 'text-red-400'
                   return (
                     <div key={label} className="flex items-center gap-1.5 text-xs">
-                      <span className={`font-bold flex-shrink-0 ${correct ? 'text-green-400' : 'text-red-400'}`}>{correct ? '✓' : '✗'}</span>
+                      <span className={`font-bold flex-shrink-0 ${correct ? 'text-green-400' : partial ? 'text-amber-400' : 'text-red-400'}`}>{correct ? '✓' : partial ? '~✓' : '✗'}</span>
                       <span className="text-gray-400 flex-shrink-0 w-6 text-right">{label}</span>
                       <span className="text-white font-medium truncate flex-1 text-right">{answer}</span>
                       <span dir="ltr" className={`font-bold flex-shrink-0 w-7 text-left ${ptColor}`}>{points}</span>

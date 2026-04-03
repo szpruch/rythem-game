@@ -51,7 +51,8 @@ export default function HelpModal({ onClose }) {
             <h3 className="text-indigo-400 font-bold text-base uppercase tracking-wide text-right">ניקוד על זיהוי נכון</h3>
             <div className="flex flex-col gap-1.5">
               <ScoreRow label="שם השיר"  points="+10" color="text-green-400" />
-              <ScoreRow label="שם המבצע" points="+6"  color="text-green-400" />
+              <ScoreRow label="שם המבצע (כל המבצעים)" points="+6"  color="text-green-400" />
+              <ScoreRow label="שם מבצע אחד בלבד (מתוך כמה)" points="+3" color="text-amber-400" />
               <ScoreRow label="טעות בשם השיר או המבצע" points="0" color="text-gray-400" />
               <div className="border-t border-gray-700/50 my-1" />
               <ScoreRow label="שנה (±1)"  points="+4" color="text-green-400" />
@@ -65,8 +66,11 @@ export default function HelpModal({ onClose }) {
           {/* Clue penalties */}
           <section className="flex flex-col gap-2">
             <h3 className="text-indigo-400 font-bold text-base uppercase tracking-wide text-right">ניקוד על רמזים</h3>
+            <p className="text-yellow-400/80 text-xs leading-relaxed bg-yellow-400/10 rounded-xl px-3 py-2 text-right">
+              💡 הרמז הראשון משכבה 1 הוא חינם — השאר עולים −1
+            </p>
             <div className="flex flex-col gap-3">
-              <ClueLevel title="שכבה 1" penalty="−1" color="bg-green-900/40 border-green-700/40">
+              <ClueLevel title="שכבה 1" penalty="חינם / −1" color="bg-green-900/40 border-green-700/40">
                 <ClueLine>3 שניות מהשיר</ClueLine>
                 <ClueLine>שורה 1 בעברית</ClueLine>
                 <ClueLine>שורה 1 באנגלית</ClueLine>
@@ -126,11 +130,12 @@ function ScoreRow({ label, points, color }) {
 
 /* ClueLevel: title RIGHT (first in RTL), penalty LEFT (last in RTL) */
 function ClueLevel({ title, penalty, color, children }) {
+  const penaltyColor = penalty === 'חינם' ? 'text-green-400' : 'text-red-400'
   return (
     <div className={`border rounded-2xl px-4 py-3 ${color}`}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-white font-bold text-sm">{title}</span>
-        <span dir="ltr" className="text-red-400 font-bold text-sm">{penalty}</span>
+        <span dir="ltr" className={`font-bold text-sm ${penaltyColor}`}>{penalty}</span>
       </div>
       <div className="flex flex-col gap-1">{children}</div>
     </div>
