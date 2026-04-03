@@ -53,7 +53,7 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SongCard({ song, revealed, onDone, onNext, round, totalScore }) {
+export default function SongCard({ song, revealed, onDone, onNext, round, totalScore, playerName }) {
   const videoId = getVideoId(song.youtube_url)
   const playerRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -162,6 +162,7 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
 
         <div className="text-center">
           <h2 className="text-xl sm:text-2xl font-bold text-white">נחש את השיר</h2>
+          {playerName && <p className="text-indigo-400 text-sm mt-0.5">{playerName}</p>}
         </div>
 
         <div className="flex items-center gap-2">

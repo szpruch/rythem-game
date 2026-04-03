@@ -1,3 +1,28 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@keyframes confettiFall {
+  0%   { transform: translateY(-10px) rotate(0deg) scale(1); opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg) scale(0.5); opacity: 0; }
+}
+
+@keyframes confettiSway {
+  0%, 100% { margin-left: 0; }
+  25%       { margin-left: 30px; }
+  75%       { margin-left: -30px; }
+}
+
+@keyframes firework {
+  0%   { transform: scale(0) rotate(0deg); opacity: 1; }
+  60%  { transform: scale(1.2) rotate(180deg); opacity: 1; }
+  100% { transform: scale(0) rotate(360deg); opacity: 0; }
+}
+
+
+@keyframes popIn {
+  0%   { transform: scale(0) rotate(-10deg); opacity: 0; }
+  70%  { transform: scale(1.15) rotate(3deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
