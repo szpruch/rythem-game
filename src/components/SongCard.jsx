@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { getVideoId } from '../utils/youtube'
-import { isCloseMatch, isYearMatch } from '../utils/fuzzy'
+import { isCloseMatch, yearScore } from '../utils/fuzzy'
 import YouTubePlayer from './YouTubePlayer'
+import HelpModal from './HelpModal'
+
+const DURATION_PENALTY = { 3: 1, 6: 4, 9: 8 }
+const LINE_PENALTY = { 1: 1, 2: 4, 3: 8 }
+const FULL_PLAY_PENALTY = 12
 
 function formatTime(secs) {
   const m = Math.floor(secs / 60)
@@ -17,7 +22,7 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SongCard({ song, revealed, onDone, onNext, round }) {
+export default function SongCard({ song, revealed, onDone, onNext, round, totalScore }) {
   const videoId = getVideoId(song.youtube_url)
   const playerRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -28,6 +33,10 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
   const [guessArtist, setGuessArtist] = useState('')
   const [guessYear, setGuessYear] = useState('')
   const [results, setResults] = useState(null)
+  const [paidClues, setPaidClues] = useState(new Set())
+  const [penalties, setPenalties] = useState(0)
+  const [roundScore, setRoundScore] = useState(null)
+  const [showHelp, setShowHelp] = useState(false)
 
   const hebrewLines = [song.hebrew_line_1, song.hebrew_line_2, song.hebrew_line_3].filter(Boolean)
   const englishLines = [song.english_line_1, song.english_line_2, song.english_line_3].filter(Boolean)
@@ -38,42 +47,105 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
     return () => clearInterval(interval)
   }, [isPlaying])
 
+  function charge(key, amount) {
+    if (paidClues.has(key)) return
+    setPaidClues(prev => new Set([...prev, key]))
+    setPenalties(prev => prev + amount)
+  }
+
   function togglePlay() {
-    isPlaying ? playerRef.current?.pause() : playerRef.current?.play()
+    if (isPlaying) {
+      playerRef.current?.pause()
+    } else {
+      if (!revealed) charge('song-full', FULL_PLAY_PENALTY)
+      playerRef.current?.play()
+    }
   }
 
   function playForSeconds(s) {
     setElapsed(0)
+    charge(`song-${s}`, DURATION_PENALTY[s])
     playerRef.current?.playForSeconds(s)
   }
 
   function handleEnglishLine(n) {
     const newCount = englishCount === n ? 0 : n
     setEnglishCount(newCount)
-    if (newCount > 0) speak(englishLines.slice(0, newCount).join('. '), 'en-US')
+    if (newCount > 0) {
+      charge(`en-${n}`, LINE_PENALTY[n])
+      speak(englishLines.slice(0, newCount).join('. '), 'en-US')
+    }
   }
 
   function handleHebrewLine(n) {
     const newCount = hebrewCount === n ? 0 : n
     setHebrewCount(newCount)
-    if (newCount > 0) speak(hebrewLines.slice(0, newCount).join('. '), 'he-IL')
+    if (newCount > 0) {
+      charge(`he-${n}`, LINE_PENALTY[n])
+      speak(hebrewLines.slice(0, newCount).join('. '), 'he-IL')
+    }
+  }
+
+  function handleReveal() {
+    const titleCorrect = isCloseMatch(guessTitle, song.song_title)
+    const artistCorrect = isCloseMatch(guessArtist, song.artist_name)
+    const yrScore = yearScore(guessYear, song.publish_year)
+    const bonuses = (titleCorrect ? 10 : 0) + (artistCorrect ? 6 : 0) + yrScore
+    const score = bonuses - penalties
+    setResults({ title: titleCorrect, artist: artistCorrect, yearPoints: yrScore, yearGuessed: !!guessYear.trim() })
+    setRoundScore(score)
+    onDone(score)
   }
 
   return (
     <div className="w-full max-w-3xl flex flex-col gap-4">
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       <YouTubePlayer ref={playerRef} videoId={videoId} onPlayStateChange={setIsPlaying} />
 
       {/* Header */}
-      <div className="text-center">
-        <p className="text-gray-500 text-xs tracking-widest uppercase">Round {round}</p>
-        <h2 className="text-2xl sm:text-4xl font-bold text-white mt-1">Guess the Song</h2>
+      <div className="flex items-center justify-between">
+        <div className="bg-gray-800 rounded-2xl px-4 py-2 text-center min-w-[72px]">
+          <p className="text-xs text-gray-500 uppercase tracking-widest">סיבוב</p>
+          <p className="text-xl font-bold text-white">{round}</p>
+        </div>
+
+        <div className="text-center">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">נחש את השיר</h2>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="bg-gray-800 rounded-2xl px-4 py-2 text-center min-w-[72px]">
+            <p className="text-xs text-gray-500 uppercase tracking-widest">ניקוד</p>
+            <p className={`text-xl font-bold ${totalScore >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {totalScore}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowHelp(true)}
+            className="w-9 h-9 rounded-full bg-indigo-700 hover:bg-indigo-600 text-white font-bold text-lg flex items-center justify-center transition shadow-lg shadow-indigo-700/40"
+            title="איך משחקים?"
+          >
+            ?
+          </button>
+        </div>
       </div>
 
       {/* Elapsed timer */}
       <div className="text-center">
-        <span className="text-4xl sm:text-6xl font-mono font-bold text-orange-400 tracking-wider">
+        <span className="text-4xl sm:text-5xl font-mono font-bold text-orange-400 tracking-wider">
           {formatTime(elapsed)}
         </span>
+        <p className="text-sm mt-1 h-5">
+          {penalties > 0 ? (
+            <span className="flex items-center justify-center gap-1.5">
+              <span dir="ltr" className="text-red-400 text-sm font-semibold">-{penalties}</span>
+              <span className="text-gray-600 text-xs">|</span>
+              <span className="bg-gray-800 text-gray-300 text-xs px-2 py-0.5 rounded-md">קנסות</span>
+            </span>
+          ) : (
+            <span className="text-transparent select-none">·</span>
+          )}
+        </p>
       </div>
 
       {/* 3-column grid */}
@@ -81,19 +153,21 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
 
         {/* English lines */}
         <div className="flex flex-col gap-1.5 sm:gap-2">
-          <p className="text-center text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">English</p>
+          <p className="text-center text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">אנגלית</p>
           {englishLines.map((_, i) => {
             const n = i + 1
             const active = englishCount >= n
+            const paid = paidClues.has(`en-${n}`)
             return (
               <button
                 key={n}
                 onClick={() => handleEnglishLine(n)}
-                className={`w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl transition-all ${
+                className={`w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl transition-all relative ${
                   active ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' : 'bg-cyan-900 hover:bg-cyan-800 text-white'
                 }`}
               >
-                Line {n}
+                שורה {n}
+                {!paid && <span dir="ltr" className="absolute top-1 right-2 text-xs text-cyan-300/60">-{LINE_PENALTY[n]}</span>}
               </button>
             )
           })}
@@ -105,15 +179,17 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
           {hebrewLines.map((_, i) => {
             const n = i + 1
             const active = hebrewCount >= n
+            const paid = paidClues.has(`he-${n}`)
             return (
               <button
                 key={n}
                 onClick={() => handleHebrewLine(n)}
-                className={`w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl transition-all ${
+                className={`w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl transition-all relative ${
                   active ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/30' : 'bg-violet-900 hover:bg-violet-800 text-white'
                 }`}
               >
                 שורה {n}
+                {!paid && <span dir="ltr" className="absolute top-1 right-2 text-xs text-violet-300/60">-{LINE_PENALTY[n]}</span>}
               </button>
             )
           })}
@@ -121,23 +197,30 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
 
         {/* Duration buttons */}
         <div className="flex flex-col gap-1.5 sm:gap-2">
-          <p className="text-center text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">Song</p>
-          {[3, 6, 9].map(s => (
-            <button
-              key={s}
-              onClick={() => playForSeconds(s)}
-              className="w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl text-white bg-green-700 hover:bg-green-600 transition-all shadow-lg shadow-green-700/20"
-            >
-              {s}s
-            </button>
-          ))}
+          <p className="text-center text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">שיר</p>
+          {[3, 6, 9].map(s => {
+            const paid = paidClues.has(`song-${s}`)
+            return (
+              <button
+                key={s}
+                onClick={() => playForSeconds(s)}
+                className="w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl text-white bg-green-700 hover:bg-green-600 transition-all shadow-lg shadow-green-700/20 relative"
+              >
+                <span className="flex items-center justify-center gap-1">
+                  <span>שניות</span>
+                  <span dir="ltr">{s}</span>
+                </span>
+                {!paid && <span dir="ltr" className="absolute top-1 right-2 text-xs text-green-300/60">-{DURATION_PENALTY[s]}</span>}
+              </button>
+            )
+          })}
         </div>
       </div>
 
       {/* Fixed-height lyric panel */}
       <div className="grid grid-cols-2 gap-2 sm:gap-3 h-20 sm:h-24">
         <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-cyan-900/40 flex flex-col justify-center overflow-hidden">
-          <p className="text-xs text-cyan-500 uppercase tracking-widest mb-1">English</p>
+          <p className="text-xs text-cyan-500 uppercase tracking-widest mb-1">אנגלית</p>
           {englishCount > 0 ? (
             <div className="flex flex-col gap-0.5 overflow-hidden">
               {englishLines.slice(0, englishCount).map((line, i) => (
@@ -145,11 +228,11 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
               ))}
             </div>
           ) : (
-            <p className="text-gray-600 text-xs italic">No lines revealed</p>
+            <p className="text-gray-600 text-xs italic">לא נחשף</p>
           )}
         </div>
         <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-violet-900/40 flex flex-col justify-center overflow-hidden">
-          <p className="text-xs text-violet-400 uppercase tracking-widest mb-1">Hebrew</p>
+          <p className="text-xs text-violet-400 uppercase tracking-widest mb-1 text-right">עברית</p>
           {hebrewCount > 0 ? (
             <div className="flex flex-col gap-0.5 overflow-hidden text-right" dir="rtl">
               {hebrewLines.slice(0, hebrewCount).map((line, i) => (
@@ -157,46 +240,67 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
               ))}
             </div>
           ) : (
-            <p className="text-gray-600 text-xs italic">No lines revealed</p>
+            <p className="text-gray-600 text-xs italic text-right">לא נחשף</p>
           )}
         </div>
       </div>
 
-      {/* Guess inputs */}
-      {!revealed && (
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 uppercase tracking-widest">Artist</label>
-            <input
-              value={guessArtist}
-              onChange={e => setGuessArtist(e.target.value)}
-              placeholder="Artist..."
-              className="bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500"
-            />
+      {/* Fixed-height section — inputs before reveal, summary after. Same height always. */}
+      <div className="h-[108px]">
+        {!revealed ? (
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 h-full" dir="rtl">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500 tracking-widest text-right">אמן</label>
+              <input value={guessArtist} onChange={e => setGuessArtist(e.target.value)}
+                placeholder="שם האמן..." dir="rtl"
+                className="bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500 text-right" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500 tracking-widest text-right">שיר</label>
+              <input value={guessTitle} onChange={e => setGuessTitle(e.target.value)}
+                placeholder="שם השיר..." dir="rtl"
+                className="bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500 text-right" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500 tracking-widest text-right">שנה</label>
+              <input value={guessYear} onChange={e => setGuessYear(e.target.value)}
+                placeholder="שנה..." maxLength={4}
+                className="bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500 text-right" />
+            </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 uppercase tracking-widest">Song</label>
-            <input
-              value={guessTitle}
-              onChange={e => setGuessTitle(e.target.value)}
-              placeholder="Title..."
-              className="bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500"
-            />
+        ) : (
+          /* Summary — two columns matching the reference design */
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl h-full flex overflow-hidden">
+            {/* Left: round score */}
+            <div className="flex flex-col items-center justify-center gap-0.5 px-4 border-r border-gray-700 min-w-[80px]">
+              <span className="text-gray-500 text-xs">סיבוב</span>
+              <span dir="ltr" className={`text-3xl font-black ${roundScore >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {roundScore >= 0 ? '+' : ''}{roundScore}
+              </span>
+            </div>
+            {/* Right: result rows */}
+            <div className="flex-1 flex flex-col justify-center gap-1 px-3 py-2">
+              <ResultRow label="שיר" guess={guessTitle} answer={song.song_title} correct={results?.title} points={results?.title ? '+10' : '0'} />
+              <ResultRow label="אמן" guess={guessArtist} answer={song.artist_name} correct={results?.artist} points={results?.artist ? '+6' : '0'} />
+              <ResultRow
+                label="שנה"
+                answer={guessYear.trim() ? `${guessYear}  (${song.publish_year})` : song.publish_year}
+                correct={results?.yearGuessed && results?.yearPoints > 0}
+                points={results?.yearPoints >= 0 ? `+${results.yearPoints}` : `${results?.yearPoints}`}
+              />
+              <div className="border-t border-gray-700/60 pt-1 flex justify-between items-center">
+                <span dir="ltr" className="text-red-400 text-xs font-semibold">-{penalties}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-gray-600 text-xs">|</span>
+                  <span className="bg-gray-800 text-gray-300 text-xs px-2 py-0.5 rounded-md">קנסות</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 uppercase tracking-widest">Year</label>
-            <input
-              value={guessYear}
-              onChange={e => setGuessYear(e.target.value)}
-              placeholder="1985"
-              maxLength={4}
-              className="bg-gray-800 text-white rounded-xl px-2 sm:px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Bottom controls */}
+      {/* Bottom controls — fixed layout, never changes */}
       <div className="flex items-center justify-center gap-3 sm:gap-4">
         <div className="flex gap-2 flex-shrink-0">
           <button
@@ -206,9 +310,8 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
             {isPlaying ? <StopIcon /> : <PlayIcon />}
           </button>
           {revealed && (
-            <button
-              onClick={() => { setElapsed(0); playerRef.current?.playFromStart() }}
-              title="Play from start"
+            <button onClick={() => { setElapsed(0); playerRef.current?.playFromStart() }}
+              title="נגן מההתחלה"
               className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition-all"
             >
               <RestartIcon />
@@ -217,51 +320,47 @@ export default function SongCard({ song, revealed, onDone, onNext, round }) {
         </div>
 
         {!revealed ? (
-          <button
-            onClick={() => {
-              setResults({
-                title: isCloseMatch(guessTitle, song.song_title),
-                artist: isCloseMatch(guessArtist, song.artist_name),
-                year: isYearMatch(guessYear, song.publish_year),
-              })
-              onDone()
-            }}
-            className="bg-purple-700 hover:bg-purple-600 text-white font-semibold px-5 sm:px-8 py-3 sm:py-3.5 rounded-2xl text-base sm:text-lg transition shadow-lg shadow-purple-700/30"
+          <button onClick={handleReveal}
+            className="flex-1 bg-purple-700 hover:bg-purple-600 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition shadow-lg shadow-purple-700/30"
           >
-            Reveal Answer 🔍
+            חשוף תשובה 🔍
           </button>
         ) : (
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl px-4 py-3 flex flex-col gap-2 flex-1">
-            <ResultRow label="Song" guess={guessTitle} answer={song.song_title} correct={results?.title} />
-            <ResultRow label="Artist" guess={guessArtist} answer={song.artist_name} correct={results?.artist} />
-            <ResultRow label="Year" guess={guessYear} answer={song.publish_year} correct={results?.year} />
-          </div>
+          <button onClick={onNext}
+            className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition border border-gray-700"
+          >
+            → שיר הבא
+          </button>
         )}
       </div>
-
-      {revealed && (
-        <button
-          onClick={onNext}
-          className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 sm:py-3.5 rounded-2xl text-base sm:text-lg transition border border-gray-700"
-        >
-          Next Song →
-        </button>
-      )}
     </div>
   )
 }
 
-function ResultRow({ label, guess, answer, correct }) {
+// Layout: [points] [answer / strikethrough] [✓✗  label]
+// Left=points, middle=answer, right=label+checkmark
+function ResultRow({ label, guess, answer, correct, points }) {
+  const pointColor = points?.startsWith('+') ? 'text-green-400' : points === '0' ? 'text-gray-500' : 'text-red-400'
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <span className="text-gray-500 w-10 sm:w-12 flex-shrink-0 text-xs sm:text-sm">{label}</span>
-      <span className={`font-semibold ${correct ? 'text-green-400' : 'text-red-400'}`}>
-        {correct ? '✓' : '✗'}
-      </span>
-      {!correct && guess && (
-        <span className="text-gray-500 line-through truncate max-w-[80px] sm:max-w-[100px] text-xs sm:text-sm">{guess}</span>
-      )}
-      <span className="text-white font-medium truncate text-xs sm:text-sm">{answer}</span>
+    <div className="grid grid-cols-[auto_1fr_auto] gap-2 items-center text-xs sm:text-sm">
+      {/* Left: score */}
+      <span dir="ltr" className={`font-bold flex-shrink-0 ${pointColor}`}>{points}</span>
+
+      {/* Middle: correct answer + strikethrough guess */}
+      <div className="flex items-center gap-1 justify-end overflow-hidden">
+        {!correct && guess && (
+          <span className="text-gray-500 line-through truncate">{guess}</span>
+        )}
+        <span className="text-white font-medium truncate">{answer}</span>
+      </div>
+
+      {/* Right: label + checkmark */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <span className={`font-bold ${correct ? 'text-green-400' : 'text-red-400'}`}>
+          {correct ? '✓' : '✗'}
+        </span>
+        <span className="text-gray-500 w-7 text-right">{label}</span>
+      </div>
     </div>
   )
 }

@@ -12,6 +12,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [gameOver, setGameOver] = useState(false)
   const [round, setRound] = useState(0)
+  const [totalScore, setTotalScore] = useState(0)
 
   useEffect(() => {
     fetch('/SongRiddle.csv')
@@ -37,6 +38,7 @@ export default function App() {
     setRevealed(false)
     setGameOver(false)
     setRound(1)
+    setTotalScore(0)
   }
 
   function nextSong() {
@@ -106,9 +108,10 @@ export default function App() {
         key={currentSong.id}
         song={currentSong}
         revealed={revealed}
-        onDone={() => setRevealed(true)}
+        onDone={(roundScore) => { setTotalScore(s => s + roundScore); setRevealed(true) }}
         onNext={nextSong}
         round={round}
+        totalScore={totalScore}
       />
     </div>
   )

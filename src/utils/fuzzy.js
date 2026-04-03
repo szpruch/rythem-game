@@ -34,10 +34,16 @@ export function isCloseMatch(guess, answer) {
   return dist <= threshold
 }
 
-// For year: accept exact or ±1
-export function isYearMatch(guess, answer) {
+// Returns score for year guess: +4 / +2 / 0 / -2 / -4
+export function yearScore(guess, answer) {
+  if (!guess || !guess.trim()) return 0
   const g = parseInt(guess, 10)
   const a = parseInt(answer, 10)
-  if (isNaN(g) || isNaN(a)) return false
-  return Math.abs(g - a) <= 1
+  if (isNaN(g) || isNaN(a)) return 0
+  const diff = Math.abs(g - a)
+  if (diff <= 1)  return 4
+  if (diff <= 3)  return 2
+  if (diff <= 5)  return 0
+  if (diff <= 10) return -2
+  return -4
 }
