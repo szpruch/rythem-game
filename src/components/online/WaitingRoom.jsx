@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ref, onValue, off, update, remove } from 'firebase/database'
+import { ref, onValue, off, update, remove, onDisconnect } from 'firebase/database'
 import { db } from '../../firebase'
 
 export default function WaitingRoom({ roomId, myPlayerId, onGameStart, onLeave }) {
@@ -16,6 +16,17 @@ export default function WaitingRoom({ roomId, myPlayerId, onGameStart, onLeave }
     })
     return () => off(roomRef, 'value', handler)
   }, [roomId])
+
+  // Auto-cleanup on disconnect (tab close / refresh / crash)
+  useEffect(() => {
+    if (!room) return
+    const isHost = room.hostId === myPlayerId
+    const target = isHost
+      ? ref(db, `rooms/${roomId}`)
+      : ref(db, `rooms/${roomId}/players/${myPlayerId}`)
+    onDisconnect(target).remove()
+    return () => onDisconnect(target).cancel()
+  }, [room?.hostId])
 
   if (!room) return (
     <div className="min-h-screen bg-[#0d0d1f] flex items-center justify-center">

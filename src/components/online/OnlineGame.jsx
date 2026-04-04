@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ref, onValue, off, update } from 'firebase/database'
+import { ref, onValue, off, update, remove, onDisconnect } from 'firebase/database'
 import { db, EMPTY_HINTS } from '../../firebase'
 import SongCard from '../SongCard'
 import SpectatorView from './SpectatorView'
@@ -21,6 +21,28 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     })
     return () => off(roomRef, 'value', handler)
   }, [roomId])
+
+  // Auto-cleanup on disconnect (tab close / refresh / crash)
+  useEffect(() => {
+    if (!room) return
+    const isHost = room.hostId === myPlayerId
+    const target = isHost
+      ? ref(db, `rooms/${roomId}`)
+      : ref(db, `rooms/${roomId}/players/${myPlayerId}`)
+    onDisconnect(target).remove()
+    return () => onDisconnect(target).cancel()
+  }, [room?.hostId])
+
+  async function handleLeave() {
+    if (!room) { onLeave(); return }
+    const isHost = room.hostId === myPlayerId
+    if (isHost) {
+      await remove(ref(db, `rooms/${roomId}`))
+    } else {
+      await remove(ref(db, `rooms/${roomId}/players/${myPlayerId}`))
+    }
+    onLeave()
+  }
 
   // Sync local score from Firebase
   useEffect(() => {
@@ -172,14 +194,14 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
             timeLimit={room.config?.maxTurnTime || null}
             startedAt={room.turnStartedAt || null}
           />
-          <button onClick={onLeave} className="mt-4 text-gray-600 hover:text-gray-400 text-xs transition">
+          <button onClick={handleLeave} className="mt-4 text-gray-600 hover:text-gray-400 text-xs transition">
             עזוב משחק ←
           </button>
         </div>
       )
     }
     // Spectator
-    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={onLeave} />
+    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} />
   }
 
   // End screen
@@ -220,7 +242,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
               </div>
             ))}
           </div>
-          <button onClick={onLeave}
+          <button onClick={handleLeave}
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-10 py-4 rounded-2xl text-xl transition">
             חזור לתפריט
           </button>
