@@ -131,6 +131,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       hints: EMPTY_HINTS,
       revealed: false,
       results: null,
+      turnStartedAt: Date.now(),
     })
   }
 
@@ -168,6 +169,8 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
             playerName={players[myPlayerId]?.name}
             onHintSync={handleHintSync}
             onAudioEvent={handleAudioEvent}
+            timeLimit={room.config?.maxTurnTime || null}
+            startedAt={room.turnStartedAt || null}
           />
           <button onClick={onLeave} className="mt-4 text-gray-600 hover:text-gray-400 text-xs transition">
             עזוב משחק ←

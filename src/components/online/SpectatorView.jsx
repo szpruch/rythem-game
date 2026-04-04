@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { getVideoId } from '../../utils/youtube'
 import YouTubePlayer from '../YouTubePlayer'
 
@@ -24,6 +24,24 @@ export default function SpectatorView({ room, myPlayerId, onLeave }) {
   const lastAudioId = useRef(null)
   const prevHebrewCount = useRef(0)
   const prevEnglishCount = useRef(0)
+
+  const timeLimit = room.config?.maxTurnTime || null
+  const startedAt = room.turnStartedAt || null
+  const [timeLeft, setTimeLeft] = useState(() => {
+    if (!timeLimit || !startedAt) return null
+    return Math.max(0, timeLimit - Math.floor((Date.now() - startedAt) / 1000))
+  })
+
+  useEffect(() => {
+    if (!timeLimit || !startedAt) { setTimeLeft(null); return }
+    setTimeLeft(Math.max(0, timeLimit - Math.floor((Date.now() - startedAt) / 1000)))
+  }, [timeLimit, startedAt])
+
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0 || room.revealed) return
+    const id = setTimeout(() => setTimeLeft(t => Math.max(0, t - 1)), 1000)
+    return () => clearTimeout(id)
+  }, [timeLeft, room.revealed])
 
   const song = room.currentSong
   const hints = room.hints || {}
@@ -84,9 +102,16 @@ export default function SpectatorView({ room, myPlayerId, onLeave }) {
             <p className="text-xs text-gray-500 uppercase tracking-widest">סיבוב</p>
             <p className="text-xl font-bold text-white">{room.cyclesDone + 1}</p>
           </div>
-          <div className="text-center">
+          <div className="text-center flex flex-col items-center gap-1">
             <h2 className="text-xl font-bold text-white">תורו של</h2>
             <p className="text-indigo-400 font-bold">{activePlayerName}</p>
+            {timeLeft !== null && !room.revealed && (
+              <span className={`font-mono font-bold text-sm ${
+                timeLeft <= 10 ? 'text-red-400 animate-pulse' : timeLeft <= 30 ? 'text-yellow-400' : 'text-gray-400'
+              }`}>
+                ⏱ {formatTime(timeLeft)}
+              </span>
+            )}
           </div>
           <div className="flex flex-col items-center gap-1">
             <div className="bg-gray-800 rounded-2xl px-4 py-2 text-center min-w-[72px]">

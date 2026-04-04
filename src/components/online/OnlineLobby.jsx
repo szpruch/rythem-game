@@ -20,6 +20,8 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
   const [scoreValue, setScoreValue] = useState(50)
   const [minYear, setMinYear] = useState(null)
   const [maxYear, setMaxYear] = useState(null)
+  const [timeLimitEnabled, setTimeLimitEnabled] = useState(false)
+  const [maxTurnTime, setMaxTurnTime] = useState(120) // seconds
 
   const csvYears = language === 'en' ? csvYearsEn : csvYearsHe
 
@@ -80,7 +82,7 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
       status: 'waiting',
       hostId: playerId,
       createdAt: Date.now(),
-      config: { language, gameMode, maxPlayers, yearRange },
+      config: { language, gameMode, maxPlayers, yearRange, maxTurnTime: timeLimitEnabled ? maxTurnTime : null },
       players: { [playerId]: { name: playerName.trim(), score: 0 } },
       hints: EMPTY_HINTS,
       turnIndex: 0,
@@ -260,6 +262,31 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
                       className="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold flex items-center justify-center transition">−</button>
                     <span className="text-white font-bold w-9 text-center">{scoreValue}</span>
                     <button onClick={() => setScoreValue(v => Math.min(200, v + 10))}
+                      className="w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center justify-center transition">+</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Time limit */}
+            <div className={cardCls} dir="rtl">
+              <div className="flex items-center justify-between">
+                <h2 className="text-white font-bold">הגבלת זמן לתור</h2>
+                <button onClick={() => setTimeLimitEnabled(v => !v)}
+                  className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${timeLimitEnabled ? 'bg-indigo-600' : 'bg-gray-700'}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${timeLimitEnabled ? 'right-0.5' : 'left-0.5'}`} />
+                </button>
+              </div>
+              {timeLimitEnabled && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-300 text-sm">זמן מקסימלי לתור</span>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setMaxTurnTime(v => Math.max(30, v - 30))}
+                      className="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold flex items-center justify-center transition">−</button>
+                    <span className="text-white font-bold w-12 text-center">
+                      {maxTurnTime < 60 ? `${maxTurnTime}ש` : `${Math.floor(maxTurnTime / 60)}:${String(maxTurnTime % 60).padStart(2, '0')}`}
+                    </span>
+                    <button onClick={() => setMaxTurnTime(v => Math.min(240, v + 30))}
                       className="w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center justify-center transition">+</button>
                   </div>
                 </div>

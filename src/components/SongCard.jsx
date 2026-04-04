@@ -53,7 +53,7 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SongCard({ song, revealed, onDone, onNext, round, totalScore, playerName, onHintSync, onAudioEvent }) {
+export default function SongCard({ song, revealed, onDone, onNext, round, totalScore, playerName, onHintSync, onAudioEvent, timeLimit, startedAt }) {
   const videoId = getVideoId(song.youtube_url)
   const playerRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -75,6 +75,26 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
   const onAudioEventRef = useRef(onAudioEvent)
   useEffect(() => { onHintSyncRef.current = onHintSync }, [onHintSync])
   useEffect(() => { onAudioEventRef.current = onAudioEvent }, [onAudioEvent])
+
+  // Countdown timer
+  const autoSubmittedRef = useRef(false)
+  const [timeLeft, setTimeLeft] = useState(() => {
+    if (!timeLimit || !startedAt) return null
+    return Math.max(0, timeLimit - Math.floor((Date.now() - startedAt) / 1000))
+  })
+
+  useEffect(() => {
+    if (timeLeft === null || revealed) return
+    if (timeLeft <= 0) {
+      if (!autoSubmittedRef.current) {
+        autoSubmittedRef.current = true
+        handleReveal(true)
+      }
+      return
+    }
+    const id = setTimeout(() => setTimeLeft(t => Math.max(0, t - 1)), 1000)
+    return () => clearTimeout(id)
+  }, [timeLeft, revealed])
 
   // Sync hint state to Firebase (online mode)
   useEffect(() => {
@@ -142,8 +162,8 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
     }
   }
 
-  function handleReveal() {
-    if (!guessYear.trim()) { setYearError(true); return }
+  function handleReveal(forced = false) {
+    if (!forced && !guessYear.trim()) { setYearError(true); return }
 
     // Normal assignment
     const normalTitle = isCloseMatch(guessTitle, song.song_title)
@@ -199,11 +219,22 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
         </div>
       </div>
 
-      {/* Elapsed timer */}
+      {/* Timer */}
       <div className="text-center">
-        <span className="text-4xl sm:text-5xl font-mono font-bold text-orange-400 tracking-wider">
-          {formatTime(elapsed)}
-        </span>
+        {timeLeft !== null && !revealed ? (
+          <>
+            <span className={`text-4xl sm:text-5xl font-mono font-bold tracking-wider ${
+              timeLeft <= 10 ? 'text-red-400 animate-pulse' : timeLeft <= 30 ? 'text-yellow-400' : 'text-orange-400'
+            }`}>
+              {formatTime(timeLeft)}
+            </span>
+            <p className="text-xs text-gray-600 mt-0.5">נותר</p>
+          </>
+        ) : (
+          <span className="text-4xl sm:text-5xl font-mono font-bold text-orange-400 tracking-wider">
+            {formatTime(elapsed)}
+          </span>
+        )}
         <p className="text-sm mt-1 h-5">
           {penalties > 0 ? (
             <span className="flex items-center justify-center gap-1.5">
