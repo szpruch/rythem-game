@@ -16,38 +16,48 @@ function shuffle(arr) {
   return a
 }
 
+function computeYears(songs) {
+  const years = songs.map(s => parseInt(s.publish_year, 10)).filter(y => !isNaN(y))
+  return years.length ? { min: Math.min(...years), max: Math.max(...years) } : null
+}
+
 export default function App() {
-  const [songs, setSongs] = useState([])
+  const [songsHe, setSongsHe] = useState([])
+  const [songsEn, setSongsEn] = useState([])
   const [loading, setLoading] = useState(true)
+
+  // Active song pool for the current game
+  const [activeSongs, setActiveSongs] = useState([])
 
   // phase: 'setup' | 'lobby' | 'playing' | 'end'
   const [phase, setPhase] = useState('setup')
-  const [players, setPlayers] = useState([])       // [{ name, score }]
-  const [playerOrder, setPlayerOrder] = useState([]) // shuffled indices into players[]
-  const [turnIndex, setTurnIndex] = useState(0)     // current position in playerOrder
-  const [cyclesDone, setCyclesDone] = useState(0)   // completed full cycles (all players played once)
+  const [players, setPlayers] = useState([])
+  const [playerOrder, setPlayerOrder] = useState([])
+  const [turnIndex, setTurnIndex] = useState(0)
+  const [cyclesDone, setCyclesDone] = useState(0)
   const [gameMode, setGameMode] = useState({ type: 'rounds', value: 5 })
   const [usedUrls, setUsedUrls] = useState(new Set())
   const [currentSong, setCurrentSong] = useState(null)
   const [revealed, setRevealed] = useState(false)
-  const [yearRange, setYearRange] = useState(null) // { min, max }
+  const [yearRange, setYearRange] = useState(null)
 
-  const csvYears = useMemo(() => {
-    const years = songs.map(s => parseInt(s.publish_year, 10)).filter(y => !isNaN(y))
-    return years.length ? { min: Math.min(...years), max: Math.max(...years) } : null
-  }, [songs])
+  const csvYearsHe = useMemo(() => computeYears(songsHe), [songsHe])
+  const csvYearsEn = useMemo(() => computeYears(songsEn), [songsEn])
 
   useEffect(() => {
-    fetch('/SongRiddle.csv')
-      .then(r => r.text())
-      .then(text => {
-        const result = Papa.parse(text, { header: true, skipEmptyLines: true })
-        setSongs(result.data)
-        setLoading(false)
-      })
+    Promise.all([
+      fetch('/SongRiddle.csv').then(r => r.text()),
+      fetch('/SongRiddleEnglishVersion.csv').then(r => r.text()),
+    ]).then(([he, en]) => {
+      setSongsHe(Papa.parse(he, { header: true, skipEmptyLines: true }).data)
+      setSongsEn(Papa.parse(en, { header: true, skipEmptyLines: true }).data)
+      setLoading(false)
+    })
   }, [])
 
-  function startGame(playerNames, mode, range) {
+  function startGame(playerNames, mode, range, language) {
+    const pool = language === 'en' ? songsEn : songsHe
+    setActiveSongs(pool)
     setPlayers(playerNames.map(name => ({ name, score: 0 })))
     setPlayerOrder(shuffle(playerNames.map((_, i) => i)))
     setTurnIndex(0)
@@ -61,7 +71,7 @@ export default function App() {
   }
 
   function handleReady() {
-    const available = songs.filter(s => {
+    const available = activeSongs.filter(s => {
       if (usedUrls.has(s.youtube_url)) return false
       if (yearRange) {
         const y = parseInt(s.publish_year, 10)
@@ -106,7 +116,15 @@ export default function App() {
   }
 
   if (phase === 'setup') {
-    return <SetupPage onStart={startGame} csvYears={csvYears} songs={songs} />
+    return (
+      <SetupPage
+        onStart={startGame}
+        songsHe={songsHe}
+        songsEn={songsEn}
+        csvYearsHe={csvYearsHe}
+        csvYearsEn={csvYearsEn}
+      />
+    )
   }
 
   if (phase === 'lobby') {
@@ -156,13 +174,10 @@ export default function App() {
           )}
           <div className="w-full flex flex-col gap-2">
             {sorted.map((p, i) => (
-              <div
-                key={p.origIdx}
-                dir="rtl"
+              <div key={p.origIdx} dir="rtl"
                 className={`flex items-center justify-between px-4 py-3 rounded-2xl ${
                   i === 0 ? 'bg-yellow-500/20 border border-yellow-500/50' : 'bg-gray-800 border border-transparent'
-                }`}
-              >
+                }`}>
                 <div className="flex items-center gap-3">
                   <span className="text-lg w-6 text-center">
                     {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
@@ -175,10 +190,8 @@ export default function App() {
               </div>
             ))}
           </div>
-          <button
-            onClick={() => setPhase('setup')}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-10 py-4 rounded-2xl text-xl transition"
-          >
+          <button onClick={() => setPhase('setup')}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-10 py-4 rounded-2xl text-xl transition">
             משחק חדש
           </button>
         </div>

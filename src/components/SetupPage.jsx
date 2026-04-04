@@ -57,7 +57,8 @@ function StatsModal({ songs, onClose }) {
   )
 }
 
-export default function SetupPage({ onStart, csvYears, songs = [] }) {
+export default function SetupPage({ onStart, songsHe = [], songsEn = [], csvYearsHe, csvYearsEn }) {
+  const [language, setLanguage] = useState('he')
   const [playerCount, setPlayerCount] = useState(2)
   const [names, setNames] = useState(
     Array.from({ length: 9 }, (_, i) => `קבוצה ${i + 1}`)
@@ -68,6 +69,9 @@ export default function SetupPage({ onStart, csvYears, songs = [] }) {
   const [minYear, setMinYear] = useState(null)
   const [maxYear, setMaxYear] = useState(null)
   const [showStats, setShowStats] = useState(false)
+
+  const songs = language === 'en' ? songsEn : songsHe
+  const csvYears = language === 'en' ? csvYearsEn : csvYearsHe
 
   useEffect(() => {
     if (csvYears) { setMinYear(csvYears.min); setMaxYear(csvYears.max) }
@@ -81,7 +85,7 @@ export default function SetupPage({ onStart, csvYears, songs = [] }) {
     const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `קבוצה ${i + 1}`)
     const gameMode = mode === 'rounds' ? { type: 'rounds', value: roundsValue } : { type: 'score', value: scoreValue }
     const yearRange = csvYears ? { min: minYear, max: maxYear } : null
-    onStart(playerNames, gameMode, yearRange)
+    onStart(playerNames, gameMode, yearRange, language)
   }
 
   const cardCls = 'bg-gray-900 border border-gray-700 rounded-2xl p-4 flex flex-col gap-3'
@@ -91,6 +95,22 @@ export default function SetupPage({ onStart, csvYears, songs = [] }) {
       <div className="w-full max-w-md flex flex-col gap-3 px-5 py-6 my-auto">
 
         {showStats && <StatsModal songs={songs} onClose={() => setShowStats(false)} />}
+
+        {/* Language toggle */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setLanguage('he')}
+            className={`flex-1 py-2 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 ${language === 'he' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+          >
+            🇮🇱 עברית
+          </button>
+          <button
+            onClick={() => setLanguage('en')}
+            className={`flex-1 py-2 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 ${language === 'en' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+          >
+            🌍 English
+          </button>
+        </div>
 
         {/* Title + logo */}
         <div className="relative flex items-center justify-center mb-1">
