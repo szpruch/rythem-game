@@ -24,6 +24,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave }) {
   const lastAudioId = useRef(null)
   const prevHebrewCount = useRef(0)
   const prevEnglishCount = useRef(0)
+  const [isPlaying, setIsPlaying] = useState(false)
 
   const timeLimit = room.config?.maxTurnTime || null
   const startedAt = room.turnStartedAt || null
@@ -54,13 +55,15 @@ export default function SpectatorView({ room, myPlayerId, onLeave }) {
   const hebrewLines = [song?.hebrew_line_1, song?.hebrew_line_2, song?.hebrew_line_3].filter(Boolean)
   const englishLines = [song?.english_line_1, song?.english_line_2, song?.english_line_3].filter(Boolean)
 
-  // Trigger audio when active player uses a hint
+  // Sync audio from active player's events
   useEffect(() => {
     const ev = hints.audioEvent
     if (!ev || ev.id === lastAudioId.current) return
     lastAudioId.current = ev.id
     if (ev.type === 'snippet') playerRef.current?.playForSeconds(ev.seconds)
     else if (ev.type === 'full') playerRef.current?.play()
+    else if (ev.type === 'pause') playerRef.current?.pause()
+    else if (ev.type === 'restart') playerRef.current?.playFromStart()
   }, [hints.audioEvent?.id])
 
   // TTS for Hebrew line hints
@@ -92,7 +95,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave }) {
 
   return (
     <div className="min-h-screen bg-[#0d0d1f] flex flex-col items-center justify-center p-6">
-      <YouTubePlayer ref={playerRef} videoId={videoId} onPlayStateChange={() => {}} />
+      <YouTubePlayer ref={playerRef} videoId={videoId} onPlayStateChange={setIsPlaying} />
 
       <div className="w-full max-w-3xl flex flex-col gap-4">
 
@@ -204,6 +207,20 @@ export default function SpectatorView({ room, myPlayerId, onLeave }) {
               </div>
             ) : <p className="text-gray-600 text-xs italic text-right">לא נחשף</p>}
           </div>
+        </div>
+
+        {/* Local audio control */}
+        <div className="flex justify-center">
+          <button
+            onClick={() => isPlaying ? playerRef.current?.pause() : playerRef.current?.play()}
+            className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition shadow-lg shadow-red-600/40"
+          >
+            {isPlaying ? (
+              <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5"><path d="M6 6h12v12H6z"/></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 ml-0.5"><path d="M8 5v14l11-7z"/></svg>
+            )}
+          </button>
         </div>
 
         {/* Revealed results */}

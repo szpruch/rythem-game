@@ -129,6 +129,7 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
 
   function togglePlay() {
     if (isPlaying) {
+      onAudioEventRef.current?.({ type: 'pause', id: String(Date.now()) })
       playerRef.current?.pause()
     } else {
       if (!revealed) charge('song-full', FULL_PLAY_PENALTY)
@@ -445,7 +446,7 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
             {isPlaying ? <StopIcon /> : <PlayIcon />}
           </button>
           {revealed && (
-            <button onClick={() => { setElapsed(0); playerRef.current?.playFromStart() }}
+            <button onClick={() => { setElapsed(0); onAudioEventRef.current?.({ type: 'restart', id: String(Date.now()) }); playerRef.current?.playFromStart() }}
               title="נגן מההתחלה"
               className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition-all"
             >
