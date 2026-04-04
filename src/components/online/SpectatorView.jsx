@@ -209,46 +209,47 @@ export default function SpectatorView({ room, myPlayerId, onLeave }) {
           </div>
         </div>
 
-        {/* Local audio control */}
-        <div className="flex justify-center">
-          <button
-            onClick={() => isPlaying ? playerRef.current?.pause() : playerRef.current?.play()}
-            className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition shadow-lg shadow-red-600/40"
-          >
-            {isPlaying ? (
-              <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5"><path d="M6 6h12v12H6z"/></svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 ml-0.5"><path d="M8 5v14l11-7z"/></svg>
-            )}
-          </button>
-        </div>
-
         {/* Revealed results */}
         {revealed && results ? (
-          <div className="bg-gray-900 border border-indigo-700/50 rounded-2xl p-4 flex flex-col gap-2" dir="rtl">
-            <p className="text-center text-gray-400 text-xs uppercase tracking-widest">תוצאה</p>
-            {[
-              { label: 'שיר', answer: song.song_title, correct: results.title, points: results.title ? '+10' : '0' },
-              { label: 'אמן', answer: [song.artist_name_1, song.artist_name_2, song.artist_name_3].filter(Boolean).join(' ו'), correct: results.artist, partial: results.artistPartial, points: results.artist ? '+6' : results.artistPartial ? '+3' : '0' },
-              { label: 'שנה', answer: song.publish_year, correct: results.yearGuessed && results.yearPoints > 0, points: results.yearPoints >= 0 ? `+${results.yearPoints}` : `${results.yearPoints}` },
-            ].map(({ label, answer, correct, partial, points }) => {
-              const ptColor = points?.startsWith('+') && points !== '+0' ? (partial ? 'text-amber-400' : 'text-green-400') : points === '0' || points === '+0' ? 'text-gray-500' : 'text-red-400'
-              return (
-                <div key={label} className="flex items-center gap-1.5 text-xs">
-                  <span className={`font-bold flex-shrink-0 ${correct ? 'text-green-400' : partial ? 'text-amber-400' : 'text-red-400'}`}>
-                    {correct ? '✓' : partial ? '~✓' : '✗'}
-                  </span>
-                  <span className="text-gray-400 w-6 flex-shrink-0 text-right">{label}</span>
-                  <span className="text-white font-medium truncate flex-1 text-right">{answer}</span>
-                  <span dir="ltr" className={`font-bold flex-shrink-0 w-7 text-left ${ptColor}`}>{points}</span>
-                </div>
-              )
-            })}
-            <div className="border-t border-gray-700 pt-2 flex justify-between items-center text-sm">
-              <span className="text-gray-400">ניקוד הסיבוב</span>
-              <span className={`font-black text-lg ${results.roundScore >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {results.roundScore >= 0 ? '+' : ''}{results.roundScore}
-              </span>
+          <div className="bg-gray-900 border border-indigo-700/50 rounded-2xl overflow-hidden" dir="rtl">
+            <p className="text-center text-gray-400 text-xs uppercase tracking-widest pt-3 pb-1">תוצאה</p>
+            <div className="flex flex-col gap-1.5 px-3 pb-2">
+              {[
+                { label: 'שיר', guess: results.guessTitle, answer: song.song_title, correct: results.title, points: results.title ? '+10' : '0' },
+                { label: 'אמן', guess: results.guessArtist, answer: [song.artist_name_1, song.artist_name_2, song.artist_name_3].filter(Boolean).join(' ו'), correct: results.artist, partial: results.artistPartial, points: results.artist ? '+6' : results.artistPartial ? '+3' : '0' },
+                { label: 'שנה', guess: results.guessYear, answer: song.publish_year, correct: results.yearGuessed && results.yearPoints > 0, points: results.yearPoints >= 0 ? `+${results.yearPoints}` : `${results.yearPoints}` },
+              ].map(({ label, guess, answer, correct, partial, points }) => {
+                const ptColor = points?.startsWith('+') && points !== '+0' ? (partial ? 'text-amber-400' : 'text-green-400') : points === '0' || points === '+0' ? 'text-gray-500' : 'text-red-400'
+                return (
+                  <div key={label} className="flex items-center gap-1 text-xs">
+                    <span className={`font-bold flex-shrink-0 w-5 text-center ${correct ? 'text-green-400' : partial ? 'text-amber-400' : 'text-red-400'}`}>
+                      {correct ? '✓' : partial ? '~✓' : '✗'}
+                    </span>
+                    <span className="text-gray-400 w-6 flex-shrink-0 text-right">{label}</span>
+                    <span className="text-gray-500 flex-1 text-right truncate">{guess || '—'}</span>
+                    <span className="text-gray-600 flex-shrink-0 px-1">→</span>
+                    <span className="text-white font-medium flex-1 text-right truncate">{answer}</span>
+                    <span dir="ltr" className={`font-bold flex-shrink-0 w-7 text-left ${ptColor}`}>{points}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="border-t border-gray-700 px-3 py-2 flex items-center justify-between">
+              <button
+                onClick={() => isPlaying ? playerRef.current?.pause() : playerRef.current?.play()}
+                className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition shadow-lg shadow-red-600/40">
+                {isPlaying ? (
+                  <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5"><path d="M6 6h12v12H6z"/></svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 ml-0.5"><path d="M8 5v14l11-7z"/></svg>
+                )}
+              </button>
+              <div className="text-right">
+                <span className="text-gray-500 text-xs block">ניקוד הסיבוב</span>
+                <span className={`font-black text-2xl ${results.roundScore >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {results.roundScore >= 0 ? '+' : ''}{results.roundScore}
+                </span>
+              </div>
             </div>
           </div>
         ) : (

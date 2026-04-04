@@ -180,7 +180,7 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
     const yrScore = yearScore(guessYear, song.publish_year)
     const bonuses = (titleCorrect ? 10 : 0) + artistResult.points + yrScore
     const score = bonuses - penalties
-    const roundResults = { title: titleCorrect, artist: artistResult.correct, artistPartial: artistResult.partial, artistPoints: artistResult.points, yearPoints: yrScore, yearGuessed: !!guessYear.trim() }
+    const roundResults = { title: titleCorrect, artist: artistResult.correct, artistPartial: artistResult.partial, artistPoints: artistResult.points, yearPoints: yrScore, yearGuessed: !!guessYear.trim(), guessTitle: guessTitle.trim(), guessArtist: guessArtist.trim(), guessYear: guessYear.trim() }
     setResults(roundResults)
     setRoundScore(score)
     onDone(score, roundResults)
@@ -381,94 +381,71 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            <p className="text-center text-gray-400 text-xs uppercase tracking-widest">התשובה שלך</p>
-            <div className="bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden flex" dir="rtl">
-
-              {/* RIGHT column: ✗/✓ + label + correct answer + points */}
-              <div className="flex flex-col justify-center gap-1 px-3 py-2 flex-1 border-l border-gray-700">
-                {[
-                  { label: 'שיר', answer: song.song_title,  correct: results?.title,  points: results?.title  ? '+10' : '0' },
-                  { label: 'אמן', answer: artistDisplay, correct: results?.artist, partial: results?.artistPartial, points: results?.artist ? '+6' : results?.artistPartial ? '+3' : '0' },
-                  { label: 'שנה',
-                    answer: song.publish_year,
-                    correct: results?.yearGuessed && results?.yearPoints > 0,
-                    points: results?.yearPoints >= 0 ? `+${results.yearPoints}` : `${results?.yearPoints}` },
-                ].map(({ label, answer, correct, partial, points }) => {
-                  const ptColor = points?.startsWith('+') && points !== '+0' ? (partial ? 'text-amber-400' : 'text-green-400') : points === '0' || points === '+0' ? 'text-gray-500' : 'text-red-400'
-                  return (
-                    <div key={label} className="flex items-center gap-1.5 text-xs">
-                      <span className={`font-bold flex-shrink-0 ${correct ? 'text-green-400' : partial ? 'text-amber-400' : 'text-red-400'}`}>{correct ? '✓' : partial ? '~✓' : '✗'}</span>
-                      <span className="text-gray-400 flex-shrink-0 w-6 text-right">{label}</span>
-                      <span className="text-white font-medium truncate flex-1 text-right">{answer}</span>
-                      <span dir="ltr" className={`font-bold flex-shrink-0 w-7 text-left ${ptColor}`}>{points}</span>
-                    </div>
-                  )
-                })}
-                {/* קנסות footer inside right column */}
-                <div className="border-t border-gray-700/50 pt-1 flex justify-between items-center">
-                  <div className="flex items-center gap-1">
-                    <span className="text-gray-600 text-xs">|</span>
-                    <span className="bg-gray-800 text-gray-300 text-xs px-2 py-0.5 rounded-md">קנסות</span>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden" dir="rtl">
+            {/* Result rows: icon | label | guess → correct | points */}
+            <div className="flex flex-col gap-1.5 px-3 pt-3 pb-2">
+              {[
+                { label: 'שיר', guess: guessTitle, answer: song.song_title, correct: results?.title, points: results?.title ? '+10' : '0' },
+                { label: 'אמן', guess: guessArtist, answer: artistDisplay, correct: results?.artist, partial: results?.artistPartial, points: results?.artist ? '+6' : results?.artistPartial ? '+3' : '0' },
+                { label: 'שנה', guess: guessYear, answer: song.publish_year, correct: results?.yearGuessed && results?.yearPoints > 0, points: results?.yearPoints >= 0 ? `+${results.yearPoints}` : `${results?.yearPoints}` },
+              ].map(({ label, guess, answer, correct, partial, points }) => {
+                const ptColor = points?.startsWith('+') && points !== '+0' ? (partial ? 'text-amber-400' : 'text-green-400') : points === '0' || points === '+0' ? 'text-gray-500' : 'text-red-400'
+                return (
+                  <div key={label} className="flex items-center gap-1 text-xs">
+                    <span className={`font-bold flex-shrink-0 w-5 text-center ${correct ? 'text-green-400' : partial ? 'text-amber-400' : 'text-red-400'}`}>{correct ? '✓' : partial ? '~✓' : '✗'}</span>
+                    <span className="text-gray-400 flex-shrink-0 w-6 text-right">{label}</span>
+                    <span className="text-gray-500 flex-1 text-right truncate">{guess || '—'}</span>
+                    <span className="text-gray-600 flex-shrink-0 px-1">→</span>
+                    <span className="text-white font-medium flex-1 text-right truncate">{answer}</span>
+                    <span dir="ltr" className={`font-bold flex-shrink-0 w-7 text-left ${ptColor}`}>{points}</span>
                   </div>
-                  <span dir="ltr" className="text-red-400 text-xs font-semibold">-{penalties}</span>
+                )
+              })}
+            </div>
+            {/* Footer: play controls + score */}
+            <div className="border-t border-gray-700 px-3 py-2 flex items-center justify-between">
+              <div className="flex gap-2">
+                <button onClick={togglePlay}
+                  className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition shadow-lg shadow-red-600/40">
+                  {isPlaying ? <StopIcon /> : <PlayIcon />}
+                </button>
+                <button onClick={() => { setElapsed(0); onAudioEventRef.current?.({ type: 'restart', id: String(Date.now()) }); playerRef.current?.playFromStart() }}
+                  className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition">
+                  <RestartIcon />
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                {penalties > 0 && <span className="text-red-400 text-xs">קנסות -{penalties}</span>}
+                <div className="text-right">
+                  <span className="text-gray-500 text-xs block">ניקוד הסיבוב</span>
+                  <span dir="ltr" className={`text-2xl font-black ${roundScore >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {roundScore >= 0 ? '+' : ''}{roundScore}
+                  </span>
                 </div>
               </div>
-
-              {/* MIDDLE column: player's guesses */}
-              <div className="flex flex-col justify-center gap-1 px-3 py-2 border-l border-gray-700 min-w-[120px] max-w-[200px]">
-                {[guessTitle, guessArtist, guessYear].map((g, i) => (
-                  <p key={i} className="text-gray-400 text-xs text-center truncate">{g || '—'}</p>
-                ))}
-                <div className="border-t border-transparent pt-1" />
-              </div>
-
-              {/* LEFT column: סיבוב + score */}
-              <div className="flex flex-col items-center justify-center gap-0.5 px-4 min-w-[72px]">
-                <span className="text-gray-500 text-xs">סיבוב</span>
-                <span dir="ltr" className={`text-2xl font-black ${roundScore >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {roundScore >= 0 ? '+' : ''}{roundScore}
-                </span>
-              </div>
-
             </div>
           </div>
         )}
       </div>
 
-      {/* Bottom controls — fixed layout, never changes */}
-      <div className="flex items-center justify-center gap-3 sm:gap-4">
-        <div className="flex gap-2 flex-shrink-0">
-          <button
-            onClick={togglePlay}
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition-all shadow-lg shadow-red-600/40"
-          >
+      {/* Bottom controls */}
+      {!revealed ? (
+        <div className="flex items-center justify-center gap-3 sm:gap-4">
+          <button onClick={togglePlay}
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition-all shadow-lg shadow-red-600/40">
             {isPlaying ? <StopIcon /> : <PlayIcon />}
           </button>
-          {revealed && (
-            <button onClick={() => { setElapsed(0); onAudioEventRef.current?.({ type: 'restart', id: String(Date.now()) }); playerRef.current?.playFromStart() }}
-              title="נגן מההתחלה"
-              className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition-all"
-            >
-              <RestartIcon />
-            </button>
-          )}
-        </div>
-
-        {!revealed ? (
           <button onClick={handleReveal}
-            className="flex-1 bg-purple-700 hover:bg-purple-600 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition shadow-lg shadow-purple-700/30"
-          >
+            className="flex-1 bg-purple-700 hover:bg-purple-600 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition shadow-lg shadow-purple-700/30">
             חשוף תשובה 🔍
           </button>
-        ) : (
-          <button onClick={onNext}
-            className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition border border-gray-700"
-          >
-            → שיר הבא
-          </button>
-        )}
-      </div>
+        </div>
+      ) : (
+        <button onClick={onNext}
+          className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition border border-gray-700">
+          → שיר הבא
+        </button>
+      )}
     </div>
   )
 }
