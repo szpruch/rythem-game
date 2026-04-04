@@ -169,11 +169,14 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
             onHintSync={handleHintSync}
             onAudioEvent={handleAudioEvent}
           />
+          <button onClick={onLeave} className="mt-4 text-gray-600 hover:text-gray-400 text-xs transition">
+            עזוב משחק ←
+          </button>
         </div>
       )
     }
     // Spectator
-    return <SpectatorView room={room} myPlayerId={myPlayerId} />
+    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={onLeave} />
   }
 
   // End screen

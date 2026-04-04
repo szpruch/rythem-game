@@ -11,9 +11,19 @@ function formatTime(secs) {
   return `${m} : ${String(s).padStart(2, '0')}`
 }
 
-export default function SpectatorView({ room, myPlayerId }) {
+function speak(text, lang) {
+  if (!window.speechSynthesis) return
+  window.speechSynthesis.cancel()
+  const utterance = new SpeechSynthesisUtterance(text)
+  utterance.lang = lang
+  window.speechSynthesis.speak(utterance)
+}
+
+export default function SpectatorView({ room, myPlayerId, onLeave }) {
   const playerRef = useRef(null)
   const lastAudioId = useRef(null)
+  const prevHebrewCount = useRef(0)
+  const prevEnglishCount = useRef(0)
 
   const song = room.currentSong
   const hints = room.hints || {}
@@ -34,6 +44,24 @@ export default function SpectatorView({ room, myPlayerId }) {
     if (ev.type === 'snippet') playerRef.current?.playForSeconds(ev.seconds)
     else if (ev.type === 'full') playerRef.current?.play()
   }, [hints.audioEvent?.id])
+
+  // TTS for Hebrew line hints
+  useEffect(() => {
+    const count = hints.hebrewCount || 0
+    if (count > prevHebrewCount.current && count > 0) {
+      speak(hebrewLines.slice(0, count).join('. '), 'he-IL')
+    }
+    prevHebrewCount.current = count
+  }, [hints.hebrewCount])
+
+  // TTS for English line hints
+  useEffect(() => {
+    const count = hints.englishCount || 0
+    if (count > prevEnglishCount.current && count > 0) {
+      speak(englishLines.slice(0, count).join('. '), 'en-US')
+    }
+    prevEnglishCount.current = count
+  }, [hints.englishCount])
 
   if (!song) return (
     <div className="min-h-screen bg-[#0d0d1f] flex items-center justify-center">
@@ -60,9 +88,16 @@ export default function SpectatorView({ room, myPlayerId }) {
             <h2 className="text-xl font-bold text-white">תורו של</h2>
             <p className="text-indigo-400 font-bold">{activePlayerName}</p>
           </div>
-          <div className="bg-gray-800 rounded-2xl px-4 py-2 text-center min-w-[72px]">
-            <p className="text-xs text-gray-500 uppercase tracking-widest">קנסות</p>
-            <p className="text-xl font-bold text-red-400">-{hints.penalties || 0}</p>
+          <div className="flex flex-col items-center gap-1">
+            <div className="bg-gray-800 rounded-2xl px-4 py-2 text-center min-w-[72px]">
+              <p className="text-xs text-gray-500 uppercase tracking-widest">קנסות</p>
+              <p className="text-xl font-bold text-red-400">-{hints.penalties || 0}</p>
+            </div>
+            {onLeave && (
+              <button onClick={onLeave} className="text-gray-600 hover:text-gray-400 text-xs transition">
+                עזוב ←
+              </button>
+            )}
           </div>
         </div>
 

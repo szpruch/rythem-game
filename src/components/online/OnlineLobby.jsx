@@ -18,8 +18,15 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
   const [mode, setMode] = useState('rounds')
   const [roundsValue, setRoundsValue] = useState(5)
   const [scoreValue, setScoreValue] = useState(50)
+  const [minYear, setMinYear] = useState(null)
+  const [maxYear, setMaxYear] = useState(null)
 
   const csvYears = language === 'en' ? csvYearsEn : csvYearsHe
+
+  // Reset year range when language or csvYears changes
+  useEffect(() => {
+    if (csvYears) { setMinYear(csvYears.min); setMaxYear(csvYears.max) }
+  }, [csvYears])
 
   // Subscribe to open rooms
   useEffect(() => {
@@ -68,11 +75,12 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
     const playerId = getPlayerId()
     const roomId = genRoomId()
     const gameMode = mode === 'rounds' ? { type: 'rounds', value: roundsValue } : { type: 'score', value: scoreValue }
+    const yearRange = csvYears && minYear !== null && maxYear !== null ? { min: minYear, max: maxYear } : null
     await set(ref(db, `rooms/${roomId}`), {
       status: 'waiting',
       hostId: playerId,
       createdAt: Date.now(),
-      config: { language, gameMode, maxPlayers },
+      config: { language, gameMode, maxPlayers, yearRange },
       players: { [playerId]: { name: playerName.trim(), score: 0 } },
       hints: EMPTY_HINTS,
       turnIndex: 0,
@@ -257,6 +265,33 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
                 </div>
               )}
             </div>
+
+            {/* Year range */}
+            {csvYears && minYear !== null && maxYear !== null && (
+              <div className={cardCls} dir="rtl">
+                <h2 className="text-white font-bold">טווח שנים</h2>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-300 text-sm">מינימום</span>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setMinYear(v => Math.max(csvYears.min, v - 1))}
+                      className="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold flex items-center justify-center transition">−</button>
+                    <span className="text-white font-bold w-12 text-center">{minYear}</span>
+                    <button onClick={() => setMinYear(v => Math.min(maxYear - 1, v + 1))}
+                      className="w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center justify-center transition">+</button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-300 text-sm">מקסימום</span>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setMaxYear(v => Math.max(minYear + 1, v - 1))}
+                      className="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold flex items-center justify-center transition">−</button>
+                    <span className="text-white font-bold w-12 text-center">{maxYear}</span>
+                    <button onClick={() => setMaxYear(v => Math.min(csvYears.max, v + 1))}
+                      className="w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center justify-center transition">+</button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <button onClick={handleCreateRoom} disabled={loading}
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-2xl text-xl transition shadow-lg shadow-emerald-600/30 disabled:opacity-50">
