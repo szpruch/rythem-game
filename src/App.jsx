@@ -4,6 +4,8 @@ import SongCard from './components/SongCard'
 import SetupPage from './components/SetupPage'
 import LobbyPage from './components/LobbyPage'
 import Confetti from './components/Confetti'
+import ModeSelectPage from './components/ModeSelectPage'
+import OnlineApp from './OnlineApp'
 
 const BG = 'min-h-screen bg-[#0d0d1f] flex flex-col items-center justify-center p-6'
 
@@ -25,6 +27,9 @@ export default function App() {
   const [songsHe, setSongsHe] = useState([])
   const [songsEn, setSongsEn] = useState([])
   const [loading, setLoading] = useState(true)
+
+  // Top-level mode: null = select screen, 'local' = local game, 'online' = online
+  const [mode, setMode] = useState(null)
 
   // Active song pool for the current game
   const [activeSongs, setActiveSongs] = useState([])
@@ -115,6 +120,27 @@ export default function App() {
     )
   }
 
+  if (mode === null) {
+    return (
+      <ModeSelectPage
+        onLocal={() => setMode('local')}
+        onOnline={() => setMode('online')}
+      />
+    )
+  }
+
+  if (mode === 'online') {
+    return (
+      <OnlineApp
+        songsHe={songsHe}
+        songsEn={songsEn}
+        csvYearsHe={csvYearsHe}
+        csvYearsEn={csvYearsEn}
+        onBack={() => setMode(null)}
+      />
+    )
+  }
+
   if (phase === 'setup') {
     return (
       <SetupPage
@@ -193,6 +219,10 @@ export default function App() {
           <button onClick={() => setPhase('setup')}
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-10 py-4 rounded-2xl text-xl transition">
             משחק חדש
+          </button>
+          <button onClick={() => { setPhase('setup'); setMode(null) }}
+            className="text-gray-500 hover:text-gray-300 text-sm transition">
+            ← תפריט ראשי
           </button>
         </div>
       </div>

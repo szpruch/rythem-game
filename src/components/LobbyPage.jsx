@@ -1,4 +1,4 @@
-export default function LobbyPage({ players, currentPlayerIdx, gameMode, cyclesDone, onReady }) {
+export default function LobbyPage({ players, currentPlayerIdx, gameMode, cyclesDone, onReady, waitingFor }) {
   const sorted = players
     .map((p, i) => ({ ...p, origIdx: i }))
     .sort((a, b) => b.score - a.score)
@@ -56,12 +56,18 @@ export default function LobbyPage({ players, currentPlayerIdx, gameMode, cyclesD
           <p className="text-3xl font-black text-white">{currentPlayer.name}</p>
         </div>
 
-        <button
-          onClick={onReady}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl text-2xl transition shadow-lg shadow-indigo-600/30"
-        >
-          מוכן! 🎵
-        </button>
+        {onReady ? (
+          <button
+            onClick={onReady}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl text-2xl transition shadow-lg shadow-indigo-600/30"
+          >
+            מוכן! 🎵
+          </button>
+        ) : (
+          <div className="text-center py-4 text-gray-400 text-lg animate-pulse">
+            ממתין ל-{waitingFor}...
+          </div>
+        )}
 
       </div>
     </div>

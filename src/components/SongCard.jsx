@@ -53,7 +53,7 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SongCard({ song, revealed, onDone, onNext, round, totalScore, playerName }) {
+export default function SongCard({ song, revealed, onDone, onNext, round, totalScore, playerName, onHintSync, onAudioEvent }) {
   const videoId = getVideoId(song.youtube_url)
   const playerRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -70,6 +70,20 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
   const [showHelp, setShowHelp] = useState(false)
   const [yearError, setYearError] = useState(false)
   const [freeHintUsed, setFreeHintUsed] = useState(false)
+
+  const onHintSyncRef = useRef(onHintSync)
+  const onAudioEventRef = useRef(onAudioEvent)
+  useEffect(() => { onHintSyncRef.current = onHintSync }, [onHintSync])
+  useEffect(() => { onAudioEventRef.current = onAudioEvent }, [onAudioEvent])
+
+  // Sync hint state to Firebase (online mode)
+  useEffect(() => {
+    onHintSyncRef.current?.({
+      hebrewCount, englishCount,
+      paidClues: [...paidClues],
+      penalties, freeHintUsed,
+    })
+  }, [hebrewCount, englishCount, paidClues, penalties, freeHintUsed])
 
   const hebrewLines = [song.hebrew_line_1, song.hebrew_line_2, song.hebrew_line_3].filter(Boolean)
   const englishLines = [song.english_line_1, song.english_line_2, song.english_line_3].filter(Boolean)
@@ -98,6 +112,7 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
       playerRef.current?.pause()
     } else {
       if (!revealed) charge('song-full', FULL_PLAY_PENALTY)
+      onAudioEventRef.current?.({ type: 'full', id: String(Date.now()) })
       playerRef.current?.play()
     }
   }
@@ -105,6 +120,7 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
   function playForSeconds(s) {
     setElapsed(0)
     charge(`song-${s}`, DURATION_PENALTY[s])
+    onAudioEventRef.current?.({ type: 'snippet', seconds: s, id: String(Date.now()) })
     playerRef.current?.playForSeconds(s)
   }
 
@@ -143,9 +159,10 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
     const yrScore = yearScore(guessYear, song.publish_year)
     const bonuses = (titleCorrect ? 10 : 0) + artistResult.points + yrScore
     const score = bonuses - penalties
-    setResults({ title: titleCorrect, artist: artistResult.correct, artistPartial: artistResult.partial, artistPoints: artistResult.points, yearPoints: yrScore, yearGuessed: !!guessYear.trim() })
+    const roundResults = { title: titleCorrect, artist: artistResult.correct, artistPartial: artistResult.partial, artistPoints: artistResult.points, yearPoints: yrScore, yearGuessed: !!guessYear.trim() }
+    setResults(roundResults)
     setRoundScore(score)
-    onDone(score)
+    onDone(score, roundResults)
   }
 
   return (
