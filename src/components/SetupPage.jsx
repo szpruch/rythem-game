@@ -61,7 +61,7 @@ export default function SetupPage({ onStart, songsHe = [], songsEn = [], csvYear
   const [language, setLanguage] = useState('he')
   const [playerCount, setPlayerCount] = useState(2)
   const [names, setNames] = useState(
-    Array.from({ length: 9 }, (_, i) => `קבוצה ${i + 1}`)
+    Array.from({ length: 9 }, (_, i) => `שחקן.ית ${i + 1}`)
   )
   const [mode, setMode] = useState('rounds')
   const [roundsValue, setRoundsValue] = useState(5)
@@ -82,7 +82,7 @@ export default function SetupPage({ onStart, songsHe = [], songsEn = [], csvYear
   }
 
   function handleStart() {
-    const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `קבוצה ${i + 1}`)
+    const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `שחקן.ית ${i + 1}`)
     const gameMode = mode === 'rounds' ? { type: 'rounds', value: roundsValue } : { type: 'score', value: scoreValue }
     const yearRange = csvYears ? { min: minYear, max: maxYear } : null
     onStart(playerNames, gameMode, yearRange, language)
@@ -141,7 +141,7 @@ export default function SetupPage({ onStart, songsHe = [], songsEn = [], csvYear
           <div className="flex flex-col gap-1.5">
             {Array.from({ length: playerCount }, (_, i) => (
               <input key={i} value={names[i]} onChange={e => setName(i, e.target.value)}
-                dir="rtl" placeholder={`קבוצה ${i + 1}`}
+                dir="rtl" placeholder={`שחקן.ית ${i + 1}`}
                 className="bg-gray-800 text-white rounded-xl px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500 text-right" />
             ))}
           </div>
