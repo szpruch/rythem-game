@@ -20,7 +20,7 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, onChallengeSubmit, onSkipChallenge, serverTimeOffset = 0, audioUnlocked, onAudioUnlock }) {
+export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, onChallengeSubmit, onSkipChallenge, serverTimeOffset = 0, unlockedVideoId, onAudioUnlock }) {
   const playerRef = useRef(null)
   const lastAudioId = useRef(null)
   const prevHebrewCount = useRef(0)
@@ -118,13 +118,20 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
     <div className="min-h-screen bg-[#0d0d1f] flex flex-col items-center justify-center p-6">
       <YouTubePlayer ref={playerRef} videoId={videoId} onPlayStateChange={setIsPlaying} />
 
-      {!audioUnlocked && (
+      {unlockedVideoId !== videoId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <button
             onClick={() => {
+              // Unlock YouTube player for this song
               playerRef.current?.play()
               setTimeout(() => playerRef.current?.pause(), 300)
-              onAudioUnlock()
+              // Unlock speechSynthesis (required separately on iOS)
+              if (window.speechSynthesis) {
+                const u = new SpeechSynthesisUtterance('')
+                window.speechSynthesis.cancel()
+                window.speechSynthesis.speak(u)
+              }
+              onAudioUnlock(videoId)
             }}
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-10 py-6 rounded-3xl text-2xl shadow-2xl active:scale-95 transition"
             style={{ animation: 'popIn 0.4s ease-out' }}>

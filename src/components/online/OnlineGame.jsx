@@ -17,7 +17,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   const [serverTimeOffset, setServerTimeOffset] = useState(0)
   const [challengeWindowOpen, setChallengeWindowOpen] = useState(false)
   const [challengeCountdown, setChallengeCountdown] = useState(10)
-  const [audioUnlocked, setAudioUnlocked] = useState(false)
+  const [unlockedVideoId, setUnlockedVideoId] = useState(null)
 
   useEffect(() => {
     const roomRef = ref(db, `rooms/${roomId}`)
@@ -439,7 +439,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       )
     }
     // Spectator
-    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} onSkipChallenge={handleSkipVote} serverTimeOffset={serverTimeOffset} audioUnlocked={audioUnlocked} onAudioUnlock={() => setAudioUnlocked(true)} />
+    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} onSkipChallenge={handleSkipVote} serverTimeOffset={serverTimeOffset} unlockedVideoId={unlockedVideoId} onAudioUnlock={vid => setUnlockedVideoId(vid)} />
   }
 
   // End screen
