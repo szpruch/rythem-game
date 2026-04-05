@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Component } from 'react'
 import { ref, onValue, off, update, remove, onDisconnect, runTransaction, serverTimestamp, set, increment } from 'firebase/database'
 import { db, EMPTY_HINTS } from '../../firebase'
 import { isCloseMatch } from '../../utils/fuzzy'
@@ -12,6 +12,26 @@ import HelpButton from '../HelpButton'
 import YouTubePlayer from '../YouTubePlayer'
 
 const BG = 'min-h-screen bg-[#0d0d1f] flex flex-col items-center justify-center p-6'
+
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { crashed: false } }
+  static getDerivedStateFromError() { return { crashed: true } }
+  render() {
+    if (this.state.crashed) return (
+      <div className={BG} dir="rtl">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <p className="text-5xl">⚠️</p>
+          <p className="text-white font-bold text-xl">משהו השתבש</p>
+          <button onClick={() => window.location.reload()}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-2xl text-lg transition">
+            רענן דף
+          </button>
+        </div>
+      </div>
+    )
+    return this.props.children
+  }
+}
 
 export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLeave }) {
   const [room, setRoom] = useState(null)
@@ -441,6 +461,9 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     }
 
     if (status === 'guessing' || status === 'revealed') {
+      if (!room.currentSong) return (
+        <div className={BG}><p className="text-gray-400 animate-pulse">טוען שיר...</p></div>
+      )
       if (isActivePlayer) {
         const challengePending = room.challenge?.status === 'pending'
         const challengeAnswered = room.challenge?.status === 'answered'
@@ -544,7 +567,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   }
 
   return (
-    <>
+    <ErrorBoundary>
       {/* Persistent spectator audio player — stays mounted across turns so iOS stays unlocked */}
       {spectatorVideoId && (
         <YouTubePlayer
@@ -555,6 +578,6 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
         />
       )}
       {renderContent()}
-    </>
+    </ErrorBoundary>
   )
 }
