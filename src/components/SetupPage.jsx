@@ -57,7 +57,7 @@ function StatsModal({ songs, onClose }) {
   )
 }
 
-export default function SetupPage({ onStart, songsHe = [], songsEn = [], csvYearsHe, csvYearsEn }) {
+export default function SetupPage({ onStart, onBack, songsHe = [], songsEn = [], csvYearsHe, csvYearsEn }) {
   const [language, setLanguage] = useState('he')
   const [playerCount, setPlayerCount] = useState(2)
   const [names, setNames] = useState(
@@ -95,6 +95,13 @@ export default function SetupPage({ onStart, songsHe = [], songsEn = [], csvYear
       <div className="w-full max-w-md flex flex-col gap-3 px-5 py-6 my-auto">
 
         {showStats && <StatsModal songs={songs} onClose={() => setShowStats(false)} />}
+
+        {/* Back button */}
+        {onBack && (
+          <button onClick={onBack} className="self-start text-gray-500 hover:text-gray-300 text-sm transition">
+            ← חזור
+          </button>
+        )}
 
         {/* Language toggle */}
         <div className="flex gap-2">

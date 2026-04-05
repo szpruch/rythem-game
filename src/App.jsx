@@ -145,6 +145,7 @@ export default function App() {
     return (
       <SetupPage
         onStart={startGame}
+        onBack={() => setMode(null)}
         songsHe={songsHe}
         songsEn={songsEn}
         csvYearsHe={csvYearsHe}
