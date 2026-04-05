@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ref, onValue, off, update, remove, onDisconnect, runTransaction, serverTimestamp, set } from 'firebase/database'
+import { ref, onValue, off, update, remove, onDisconnect, runTransaction, serverTimestamp, set, increment } from 'firebase/database'
 import { db, EMPTY_HINTS } from '../../firebase'
 import { isCloseMatch } from '../../utils/fuzzy'
 import SongCard from '../SongCard'
@@ -79,6 +79,17 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     }
   }, [])
 
+  async function finishGame(extraFields = {}) {
+    // Use transaction to ensure only one client increments the counter
+    await runTransaction(ref(db, `rooms/${roomId}/counted`), current => {
+      if (current) return // already counted — abort
+      return true
+    }).then(({ committed }) => {
+      if (committed) update(ref(db, 'stats'), { gamesPlayed: increment(1) })
+    })
+    await update(ref(db, `rooms/${roomId}`), { status: 'finished', counted: true, ...extraFields })
+  }
+
   async function handleLeave() {
     await remove(ref(db, `rooms/${roomId}/players/${myPlayerId}`))
     onLeave()
@@ -105,7 +116,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
 
     if (remainingIds.length < 2) {
       if (remainingIds[0] === myPlayerId) {
-        update(ref(db, `rooms/${roomId}`), { status: 'finished' })
+        finishGame()
       }
       return
     }
@@ -129,13 +140,13 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       : (room.usedUrls || [])
 
     if (room.config.gameMode.type === 'rounds' && newCycles >= room.config.gameMode.value) {
-      await update(ref(db, `rooms/${roomId}`), { status: 'finished', usedUrls: newUsedUrls })
+      await finishGame({ usedUrls: newUsedUrls })
       return
     }
     if (room.config.gameMode.type === 'score') {
       const maxScore = Math.max(...remainingIds.map(id => currentPlayers[id]?.score || 0))
       if (maxScore >= room.config.gameMode.value) {
-        await update(ref(db, `rooms/${roomId}`), { status: 'finished', usedUrls: newUsedUrls })
+        await finishGame({ usedUrls: newUsedUrls })
         return
       }
     }
@@ -297,13 +308,13 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     // Check end condition
     const latestPlayers = room.players || {}
     if (room.config.gameMode.type === 'rounds' && newCycles >= room.config.gameMode.value) {
-      await update(ref(db, `rooms/${roomId}`), { status: 'finished', usedUrls })
+      await finishGame({ usedUrls })
       return
     }
     if (room.config.gameMode.type === 'score') {
       const maxScore = Math.max(...Object.values(latestPlayers).map(p => p.score || 0))
       if (maxScore >= room.config.gameMode.value) {
-        await update(ref(db, `rooms/${roomId}`), { status: 'finished', usedUrls })
+        await finishGame({ usedUrls })
         return
       }
     }
@@ -334,7 +345,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       return true
     })
     if (available.length === 0) {
-      await update(ref(db, `rooms/${roomId}`), { status: 'finished' })
+      await finishGame()
       return
     }
     const song = available[Math.floor(Math.random() * available.length)]

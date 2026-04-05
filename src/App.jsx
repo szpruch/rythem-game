@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Papa from 'papaparse'
+import { ref, onValue, off } from 'firebase/database'
+import { db } from './firebase'
 import SongCard from './components/SongCard'
 import SetupPage from './components/SetupPage'
 import LobbyPage from './components/LobbyPage'
@@ -7,7 +9,33 @@ import Confetti from './components/Confetti'
 import ModeSelectPage from './components/ModeSelectPage'
 import OnlineApp from './OnlineApp'
 
+const STATS_SECRET = 'szpru2024'
+
 const BG = 'min-h-screen bg-[#0d0d1f] flex flex-col items-center justify-center p-6'
+
+function StatsPage() {
+  const [gamesPlayed, setGamesPlayed] = useState(null)
+  useEffect(() => {
+    const r = ref(db, 'stats/gamesPlayed')
+    onValue(r, snap => setGamesPlayed(snap.val() ?? 0))
+    return () => off(r)
+  }, [])
+  return (
+    <div className={BG}>
+      <div className="flex flex-col items-center gap-6 text-center">
+        <p className="text-6xl">📊</p>
+        <h1 className="text-3xl font-bold text-white">סטטיסטיקות</h1>
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl px-10 py-6 flex flex-col items-center gap-2">
+          <p className="text-gray-400 text-sm uppercase tracking-widest">משחקים שהסתיימו</p>
+          {gamesPlayed === null
+            ? <p className="text-gray-500 animate-pulse text-4xl">...</p>
+            : <p className="text-white font-black text-6xl">{gamesPlayed}</p>
+          }
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function shuffle(arr) {
   const a = [...arr]
@@ -110,6 +138,11 @@ export default function App() {
       if (maxScore >= gameMode.value) { setPhase('end'); return }
     }
     setPhase('lobby')
+  }
+
+  // Private stats page — ?stats=szpru2024
+  if (new URLSearchParams(window.location.search).get('stats') === STATS_SECRET) {
+    return <StatsPage />
   }
 
   if (loading) {

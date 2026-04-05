@@ -38,7 +38,7 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
       if (!snap.exists()) { setRooms([]); return }
       const now = Date.now()
       const list = Object.entries(snap.val())
-        .filter(([, r]) => r.status === 'waiting' && (now - (r.createdAt || 0)) < 12 * 60 * 60 * 1000)
+        .filter(([, r]) => ['waiting', 'lobby', 'guessing', 'revealed'].includes(r.status) && (now - (r.createdAt || 0)) < 12 * 60 * 60 * 1000)
         .map(([id, r]) => ({ id, ...r }))
       setRooms(list)
     })
@@ -172,7 +172,7 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
                   const isFull = playerCount >= room.config?.maxPlayers
                   return (
                     <div key={room.id} dir="rtl"
-                      className="bg-gray-900 border border-gray-700 rounded-2xl px-4 py-3 flex items-center justify-between">
+                      className={`border rounded-2xl px-4 py-3 flex items-center justify-between ${room.status === 'waiting' ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-700/50'}`}>
                       <div className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-2">
                           <span>{room.config?.language === 'en' ? '🌍' : '🇮🇱'}</span>
@@ -186,13 +186,17 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
                           <span>{playerCount}/{room.config?.maxPlayers} שחקנים</span>
                         </div>
                       </div>
-                      <button
-                        onClick={() => joinRoom(room.id)}
-                        disabled={isFull || loading}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-sm transition disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-                      >
-                        {isFull ? 'מלא' : 'הצטרף'}
-                      </button>
+                      {room.status === 'waiting' ? (
+                        <button
+                          onClick={() => joinRoom(room.id)}
+                          disabled={isFull || loading}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-sm transition disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                        >
+                          {isFull ? 'מלא' : 'הצטרף'}
+                        </button>
+                      ) : (
+                        <span className="text-xs bg-orange-900/50 text-orange-400 border border-orange-700/50 px-2 py-1 rounded-xl flex-shrink-0">🎮 פעיל</span>
+                      )}
                     </div>
                   )
                 })}
