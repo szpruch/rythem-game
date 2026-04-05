@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import { ref, onValue, off, update, remove, onDisconnect, runTransaction, serverTimestamp, set, increment } from 'firebase/database'
 import { db, EMPTY_HINTS } from '../../firebase'
 import { isCloseMatch } from '../../utils/fuzzy'
+import { getVideoId } from '../../utils/youtube'
 import SongCard from '../SongCard'
 import SpectatorView from './SpectatorView'
 import ChallengePanel from './ChallengePanel'
 import LobbyPage from '../LobbyPage'
 import Confetti from '../Confetti'
 import HelpButton from '../HelpButton'
+import YouTubePlayer from '../YouTubePlayer'
 
 const BG = 'min-h-screen bg-[#0d0d1f] flex flex-col items-center justify-center p-6'
 
@@ -18,7 +20,11 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   const [serverTimeOffset, setServerTimeOffset] = useState(0)
   const [challengeWindowOpen, setChallengeWindowOpen] = useState(false)
   const [challengeCountdown, setChallengeCountdown] = useState(10)
-  const [unlockedVideoId, setUnlockedVideoId] = useState(null)
+  // Spectator audio player — lives in OnlineGame so it persists across turns
+  const spectatorPlayerRef = useRef(null)
+  const [spectatorVideoId, setSpectatorVideoId] = useState(null)
+  const [spectatorIsPlaying, setSpectatorIsPlaying] = useState(false)
+  const [audioUnlocked, setAudioUnlocked] = useState(false)
 
   useEffect(() => {
     const roomRef = ref(db, `rooms/${roomId}`)
@@ -176,6 +182,40 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   useEffect(() => {
     if (room?.status === 'guessing') setLocalRevealed(false)
   }, [room?.status, room?.currentSong?.youtube_url])
+
+  // Track current song videoId for spectator player (keep last known so player stays mounted between turns)
+  useEffect(() => {
+    if (!room) return
+    const activeId = room.playerOrder?.[room.turnIndex]
+    const iAm = activeId === myPlayerId
+    if (iAm) {
+      setSpectatorVideoId(null) // unmount spectator player when it's my turn
+      setAudioUnlocked(false)
+    } else if (room.currentSong?.youtube_url) {
+      setSpectatorVideoId(getVideoId(room.currentSong.youtube_url))
+    }
+    // When currentSong is null (between turns) we keep the last videoId so the iframe stays mounted
+  }, [room?.currentSong?.youtube_url, room?.playerOrder?.[room?.turnIndex]])
+
+  // Transparent audio unlock — fires on first tap anywhere (no button needed)
+  useEffect(() => {
+    if (audioUnlocked || spectatorVideoId === null) return
+    function unlock() {
+      spectatorPlayerRef.current?.play()
+      setTimeout(() => spectatorPlayerRef.current?.pause(), 300)
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel()
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance(''))
+      }
+      setAudioUnlocked(true)
+    }
+    document.addEventListener('touchstart', unlock, { once: true, passive: true })
+    document.addEventListener('click', unlock, { once: true })
+    return () => {
+      document.removeEventListener('touchstart', unlock)
+      document.removeEventListener('click', unlock)
+    }
+  }, [audioUnlocked, spectatorVideoId])
 
   if (!room) return (
     <div className={BG}><p className="text-gray-400 animate-pulse">טוען...</p></div>
@@ -383,114 +423,134 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
 
   const status = room.status
 
-  // Between turns — scoreboard
-  if (status === 'lobby') {
-    return (
-      <LobbyPage
-        players={playerList}
-        currentPlayerIdx={room.playerOrder?.indexOf(activePlayerId)}
-        gameMode={room.config?.gameMode}
-        cyclesDone={room.cyclesDone || 0}
-        onReady={isActivePlayer ? handleReady : null}
-        waitingFor={!isActivePlayer ? playerList.find(p => p.id === activePlayerId)?.name : null}
-      />
-    )
-  }
+  function renderContent() {
+    if (status === 'lobby') {
+      return (
+        <LobbyPage
+          players={playerList}
+          currentPlayerIdx={room.playerOrder?.indexOf(activePlayerId)}
+          gameMode={room.config?.gameMode}
+          cyclesDone={room.cyclesDone || 0}
+          onReady={isActivePlayer ? handleReady : null}
+          waitingFor={!isActivePlayer ? playerList.find(p => p.id === activePlayerId)?.name : null}
+        />
+      )
+    }
 
-  // Active player's turn
-  if (status === 'guessing' || status === 'revealed') {
-    if (isActivePlayer) {
-      const challengePending = room.challenge?.status === 'pending'
-      const challengeAnswered = room.challenge?.status === 'answered'
-      const waitingForChallenge = localRevealed && (challengeWindowOpen || challengePending)
-      const showReveal = localRevealed && !waitingForChallenge
+    if (status === 'guessing' || status === 'revealed') {
+      if (isActivePlayer) {
+        const challengePending = room.challenge?.status === 'pending'
+        const challengeAnswered = room.challenge?.status === 'answered'
+        const waitingForChallenge = localRevealed && (challengeWindowOpen || challengePending)
+        const showReveal = localRevealed && !waitingForChallenge
+        return (
+          <div className={BG}>
+            <SongCard
+              key={room.currentSong?.youtube_url}
+              song={room.currentSong}
+              revealed={showReveal}
+              submittedPending={waitingForChallenge}
+              challengeCountdown={challengeWindowOpen && !challengePending ? challengeCountdown : null}
+              onDone={handleDone}
+              onNext={showReveal ? handleNext : null}
+              round={room.cyclesDone + 1}
+              totalScore={localScore}
+              playerName={players[myPlayerId]?.name}
+              onHintSync={handleHintSync}
+              onAudioEvent={handleAudioEvent}
+              timeLimit={room.config?.maxTurnTime || null}
+              startedAt={room.turnStartedAt || null}
+            />
+            {challengePending && (
+              <div className="mt-3 animate-pulse" dir="rtl" style={{ animation: 'popIn 0.3s ease-out' }}>
+                <p className="text-orange-400 font-bold text-sm text-center">⚔️ {room.challenge.challengerName} מאתגר...</p>
+              </div>
+            )}
+            {challengeAnswered && showReveal && (
+              <div className="mt-3 w-full max-w-md">
+                <ChallengePanel challenge={room.challenge} myPlayerId={myPlayerId} windowOpen={false} countdown={0} hasChallengeable={false} onChallenge={null} onChallengeSubmit={null}
+                  roundScore={room.results?.roundScore} activePlayerName={players[myPlayerId]?.name} />
+              </div>
+            )}
+            <button onClick={handleLeave} className="mt-4 text-gray-600 hover:text-gray-400 text-xs transition">
+              עזוב משחק ←
+            </button>
+            <HelpButton />
+          </div>
+        )
+      }
+      return (
+        <SpectatorView
+          room={room} myPlayerId={myPlayerId} onLeave={handleLeave}
+          onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit}
+          onSkipChallenge={handleSkipVote} serverTimeOffset={serverTimeOffset}
+          playerRef={spectatorPlayerRef} isPlaying={spectatorIsPlaying}
+        />
+      )
+    }
+
+    if (status === 'finished') {
+      const sorted = Object.entries(room.players || {})
+        .map(([id, p]) => ({ id, ...p }))
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+      const winner = sorted[0]
       return (
         <div className={BG}>
-          <SongCard
-            key={room.currentSong?.youtube_url}
-            song={room.currentSong}
-            revealed={showReveal}
-            submittedPending={waitingForChallenge}
-            challengeCountdown={challengeWindowOpen && !challengePending ? challengeCountdown : null}
-            onDone={handleDone}
-            onNext={showReveal ? handleNext : null}
-            round={room.cyclesDone + 1}
-            totalScore={localScore}
-            playerName={players[myPlayerId]?.name}
-            onHintSync={handleHintSync}
-            onAudioEvent={handleAudioEvent}
-            timeLimit={room.config?.maxTurnTime || null}
-            startedAt={room.turnStartedAt || null}
-          />
-          {challengePending && (
-            <div className="mt-3 animate-pulse" dir="rtl" style={{ animation: 'popIn 0.3s ease-out' }}>
-              <p className="text-orange-400 font-bold text-sm text-center">⚔️ {room.challenge.challengerName} מאתגר...</p>
+          <Confetti />
+          <div className="flex flex-col items-center gap-5 text-center w-full max-w-md relative z-10">
+            <p className="text-7xl" style={{ animation: 'popIn 0.6s ease-out forwards' }}>🏆</p>
+            <h1 className="text-4xl font-bold text-white" style={{ animation: 'popIn 0.6s 0.15s ease-out both' }}>
+              המשחק נגמר!
+            </h1>
+            {sorted.length > 1 && (
+              <p className="text-3xl text-yellow-400 font-black" style={{ animation: 'popIn 0.7s 0.3s ease-out both' }}>
+                🎉 {winner.name} ניצח! 🎉
+              </p>
+            )}
+            <div className="w-full flex flex-col gap-2">
+              {sorted.map((p, i) => (
+                <div key={p.id} dir="rtl"
+                  className={`flex items-center justify-between px-4 py-3 rounded-2xl ${
+                    i === 0 ? 'bg-yellow-500/20 border border-yellow-500/50' : 'bg-gray-800 border border-transparent'
+                  }`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg w-6 text-center">
+                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
+                    </span>
+                    <span className="text-white font-bold">{p.name}</span>
+                    {p.id === myPlayerId && <span className="text-xs text-gray-500">(אתה)</span>}
+                  </div>
+                  <span className={`font-black text-xl ${(p.score || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {p.score || 0}
+                  </span>
+                </div>
+              ))}
             </div>
-          )}
-          {challengeAnswered && showReveal && (
-            <div className="mt-3 w-full max-w-md">
-              <ChallengePanel challenge={room.challenge} myPlayerId={myPlayerId} windowOpen={false} countdown={0} hasChallengeable={false} onChallenge={null} onChallengeSubmit={null}
-                roundScore={room.results?.roundScore} activePlayerName={players[myPlayerId]?.name} />
-            </div>
-          )}
-          <button onClick={handleLeave} className="mt-4 text-gray-600 hover:text-gray-400 text-xs transition">
-            עזוב משחק ←
-          </button>
+            <button onClick={handleLeave}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-10 py-4 rounded-2xl text-xl transition">
+              חזור לתפריט
+            </button>
+          </div>
           <HelpButton />
         </div>
       )
     }
-    // Spectator
-    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} onSkipChallenge={handleSkipVote} serverTimeOffset={serverTimeOffset} unlockedVideoId={unlockedVideoId} onAudioUnlock={vid => setUnlockedVideoId(vid)} />
+
+    return null
   }
 
-  // End screen
-  if (status === 'finished') {
-    const sorted = Object.entries(room.players || {})
-      .map(([id, p]) => ({ id, ...p }))
-      .sort((a, b) => (b.score || 0) - (a.score || 0))
-    const winner = sorted[0]
-    return (
-      <div className={BG}>
-        <Confetti />
-        <div className="flex flex-col items-center gap-5 text-center w-full max-w-md relative z-10">
-          <p className="text-7xl" style={{ animation: 'popIn 0.6s ease-out forwards' }}>🏆</p>
-          <h1 className="text-4xl font-bold text-white" style={{ animation: 'popIn 0.6s 0.15s ease-out both' }}>
-            המשחק נגמר!
-          </h1>
-          {sorted.length > 1 && (
-            <p className="text-3xl text-yellow-400 font-black" style={{ animation: 'popIn 0.7s 0.3s ease-out both' }}>
-              🎉 {winner.name} ניצח! 🎉
-            </p>
-          )}
-          <div className="w-full flex flex-col gap-2">
-            {sorted.map((p, i) => (
-              <div key={p.id} dir="rtl"
-                className={`flex items-center justify-between px-4 py-3 rounded-2xl ${
-                  i === 0 ? 'bg-yellow-500/20 border border-yellow-500/50' : 'bg-gray-800 border border-transparent'
-                }`}>
-                <div className="flex items-center gap-3">
-                  <span className="text-lg w-6 text-center">
-                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
-                  </span>
-                  <span className="text-white font-bold">{p.name}</span>
-                  {p.id === myPlayerId && <span className="text-xs text-gray-500">(אתה)</span>}
-                </div>
-                <span className={`font-black text-xl ${(p.score || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {p.score || 0}
-                </span>
-              </div>
-            ))}
-          </div>
-          <button onClick={handleLeave}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-10 py-4 rounded-2xl text-xl transition">
-            חזור לתפריט
-          </button>
-        </div>
-        <HelpButton />
-      </div>
-    )
-  }
-
-  return <div className={BG}><p className="text-gray-400 animate-pulse">טוען...</p></div>
+  return (
+    <>
+      {/* Persistent spectator audio player — stays mounted across turns so iOS stays unlocked */}
+      {spectatorVideoId && (
+        <YouTubePlayer
+          key="spectator-player"
+          ref={spectatorPlayerRef}
+          videoId={spectatorVideoId}
+          onPlayStateChange={setSpectatorIsPlaying}
+        />
+      )}
+      {renderContent()}
+    </>
+  )
 }

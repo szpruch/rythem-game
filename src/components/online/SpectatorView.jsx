@@ -1,6 +1,4 @@
 import { useRef, useEffect, useState } from 'react'
-import { getVideoId } from '../../utils/youtube'
-import YouTubePlayer from '../YouTubePlayer'
 import ChallengePanel from './ChallengePanel'
 import HelpButton from '../HelpButton'
 
@@ -21,12 +19,10 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, onChallengeSubmit, onSkipChallenge, serverTimeOffset = 0, unlockedVideoId, onAudioUnlock }) {
-  const playerRef = useRef(null)
+export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, onChallengeSubmit, onSkipChallenge, serverTimeOffset = 0, playerRef, isPlaying }) {
   const lastAudioId = useRef(null)
   const prevHebrewCount = useRef(0)
   const prevEnglishCount = useRef(0)
-  const [isPlaying, setIsPlaying] = useState(false)
   const [challengeWindowOpen, setChallengeWindowOpen] = useState(false)
   const [challengeCountdown, setChallengeCountdown] = useState(5)
 
@@ -88,26 +84,6 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
     prevEnglishCount.current = count
   }, [hints.englishCount])
 
-  // Transparent audio unlock — fires on first touch/click anywhere
-  useEffect(() => {
-    if (unlockedVideoId === videoId) return
-    function unlock() {
-      playerRef.current?.play()
-      setTimeout(() => playerRef.current?.pause(), 300)
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel()
-        window.speechSynthesis.speak(new SpeechSynthesisUtterance(''))
-      }
-      onAudioUnlock(videoId)
-    }
-    document.addEventListener('touchstart', unlock, { once: true, passive: true })
-    document.addEventListener('click', unlock, { once: true })
-    return () => {
-      document.removeEventListener('touchstart', unlock)
-      document.removeEventListener('click', unlock)
-    }
-  }, [videoId, unlockedVideoId])
-
   // Challenge countdown window (10s after reveal)
   useEffect(() => {
     const revealedAt = room.revealedAt
@@ -132,30 +108,10 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
     </div>
   )
 
-  const videoId = getVideoId(song.youtube_url)
   const paidClues = hints.paidClues || {}
 
   return (
     <div className="min-h-screen bg-[#0d0d1f] flex flex-col items-center justify-center p-6">
-      <YouTubePlayer ref={playerRef} videoId={videoId} onPlayStateChange={setIsPlaying} />
-
-      {unlockedVideoId !== videoId && (
-        <button
-          onClick={() => {
-            playerRef.current?.play()
-            setTimeout(() => playerRef.current?.pause(), 300)
-            if (window.speechSynthesis) {
-              window.speechSynthesis.cancel()
-              window.speechSynthesis.speak(new SpeechSynthesisUtterance(''))
-            }
-            onAudioUnlock(videoId)
-          }}
-          className="fixed top-3 right-3 z-50 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold px-3 py-1.5 rounded-xl text-sm shadow-lg transition flex items-center gap-1.5"
-          style={{ animation: 'popIn 0.3s ease-out' }}>
-          🔊 הפעל שמע
-        </button>
-      )}
-
       <div className="w-full max-w-3xl flex flex-col gap-4">
 
         {/* Header */}

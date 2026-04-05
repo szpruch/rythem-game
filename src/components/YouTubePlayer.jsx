@@ -23,10 +23,8 @@ const YouTubePlayer = forwardRef(function YouTubePlayer({ videoId, onPlayStateCh
   const playerRef = useRef(null)
   const timerRef = useRef(null)
   const readyRef = useRef(false)
-  // Duration waiting to be timed — set when playForSeconds is called,
-  // consumed in onStateChange once PLAYING fires so the clock starts
-  // only after the video actually begins, not when playVideo() is called.
   const pendingDurationRef = useRef(null)
+  const currentVideoIdRef = useRef(videoId)
 
   useImperativeHandle(ref, () => ({
     playForSeconds(seconds) {
@@ -56,12 +54,13 @@ const YouTubePlayer = forwardRef(function YouTubePlayer({ videoId, onPlayStateCh
     },
   }))
 
+  // Create player once — iOS audio lock persists as long as iframe stays mounted
   useEffect(() => {
     let destroyed = false
     whenYTReady(() => {
       if (destroyed || !containerRef.current) return
       playerRef.current = new window.YT.Player(containerRef.current, {
-        videoId,
+        videoId: currentVideoIdRef.current,
         width: 1,
         height: 1,
         playerVars: { controls: 0, disablekb: 1, rel: 0, iv_load_policy: 3, playsinline: 1 },
@@ -71,7 +70,6 @@ const YouTubePlayer = forwardRef(function YouTubePlayer({ videoId, onPlayStateCh
             if (destroyed || !window.YT) return
             const playing = e.data === window.YT.PlayerState.PLAYING
             onPlayStateChange?.(playing)
-            // Start the countdown only once the video is actually playing
             if (playing && pendingDurationRef.current !== null) {
               const secs = pendingDurationRef.current
               pendingDurationRef.current = null
@@ -89,6 +87,16 @@ const YouTubePlayer = forwardRef(function YouTubePlayer({ videoId, onPlayStateCh
       playerRef.current = null
       readyRef.current = false
       pendingDurationRef.current = null
+    }
+  }, [])
+
+  // Cue new video without recreating the iframe (keeps iOS audio unlocked)
+  useEffect(() => {
+    currentVideoIdRef.current = videoId
+    if (playerRef.current && readyRef.current && videoId) {
+      clearTimeout(timerRef.current)
+      pendingDurationRef.current = null
+      playerRef.current.cueVideoById(videoId)
     }
   }, [videoId])
 
