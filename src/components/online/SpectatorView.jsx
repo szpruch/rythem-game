@@ -20,7 +20,7 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, onChallengeSubmit, serverTimeOffset = 0 }) {
+export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, onChallengeSubmit, onSkipChallenge, serverTimeOffset = 0 }) {
   const playerRef = useRef(null)
   const lastAudioId = useRef(null)
   const prevHebrewCount = useRef(0)
@@ -28,6 +28,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
   const [isPlaying, setIsPlaying] = useState(false)
   const [challengeWindowOpen, setChallengeWindowOpen] = useState(false)
   const [challengeCountdown, setChallengeCountdown] = useState(5)
+  const [audioUnlocked, setAudioUnlocked] = useState(false)
 
   const timeLimit = room.config?.maxTurnTime || null
   const startedAt = room.turnStartedAt || null
@@ -117,6 +118,21 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
   return (
     <div className="min-h-screen bg-[#0d0d1f] flex flex-col items-center justify-center p-6">
       <YouTubePlayer ref={playerRef} videoId={videoId} onPlayStateChange={setIsPlaying} />
+
+      {!audioUnlocked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <button
+            onClick={() => {
+              playerRef.current?.play()
+              setTimeout(() => playerRef.current?.pause(), 300)
+              setAudioUnlocked(true)
+            }}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-10 py-6 rounded-3xl text-2xl shadow-2xl active:scale-95 transition"
+            style={{ animation: 'popIn 0.4s ease-out' }}>
+            🔊 הפעל שמע
+          </button>
+        </div>
+      )}
 
       <div className="w-full max-w-3xl flex flex-col gap-4">
 
@@ -257,6 +273,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
             hasChallengeable={!!results}
             onChallenge={onChallenge}
             onChallengeSubmit={onChallengeSubmit}
+            onSkip={onSkipChallenge}
             roundScore={results?.roundScore}
             activePlayerName={activePlayerName}
           />

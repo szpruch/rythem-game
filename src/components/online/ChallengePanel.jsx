@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 export default function ChallengePanel({
   challenge, myPlayerId, windowOpen, countdown,
-  hasChallengeable, onChallenge, onChallengeSubmit,
+  hasChallengeable, onChallenge, onChallengeSubmit, onSkip,
   roundScore, activePlayerName,
 }) {
   const [guessTitle, setGuessTitle] = useState('')
@@ -29,6 +29,12 @@ export default function ChallengePanel({
           style={{ animation: 'popIn 0.3s ease-out' }}>
           ⚔️ אתגר!
         </button>
+        {onSkip && (
+          <button onClick={onSkip}
+            className="w-full bg-gray-800 hover:bg-gray-700 text-gray-400 font-semibold py-2 rounded-2xl text-sm transition">
+            דלג על אתגר ↩
+          </button>
+        )}
         <p className="text-gray-600 text-xs">עלות: -5 נקודות · רק אחד יכול לאתגר</p>
       </div>
     )

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ref, onValue, off, update, remove, onDisconnect, runTransaction, serverTimestamp } from 'firebase/database'
+import { ref, onValue, off, update, remove, onDisconnect, runTransaction, serverTimestamp, set } from 'firebase/database'
 import { db, EMPTY_HINTS } from '../../firebase'
 import { isCloseMatch } from '../../utils/fuzzy'
 import SongCard from '../SongCard'
@@ -50,31 +50,32 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     return () => clearInterval(id)
   }, [room?.revealedAt, !!room?.challenge, room?.status, serverTimeOffset])
 
-  // Remove player on disconnect — with 1-minute grace period for tab switching
+  // Disconnect handling — onDisconnect marks disconnectedAt (never removes directly)
+  // visibilitychange runs a 60s grace timer before calling handleLeave()
   useEffect(() => {
-    const target = ref(db, `rooms/${roomId}/players/${myPlayerId}`)
+    const disconnectedAtRef = ref(db, `rooms/${roomId}/players/${myPlayerId}/disconnectedAt`)
     let leaveTimer = null
 
-    const registerDisconnect = () => onDisconnect(target).remove()
-    const cancelDisconnect = () => onDisconnect(target).cancel()
+    // Mark as connected (clear any stale disconnectedAt)
+    set(disconnectedAtRef, null)
+    // On actual disconnect: stamp the time (not remove — avoids race on mobile tab switch)
+    onDisconnect(disconnectedAtRef).set(serverTimestamp())
 
     const onVisibilityChange = () => {
       if (document.hidden) {
-        cancelDisconnect()
         leaveTimer = setTimeout(() => { handleLeave() }, 60000)
       } else {
         clearTimeout(leaveTimer)
         leaveTimer = null
-        registerDisconnect()
+        set(disconnectedAtRef, null) // came back — clear the stamp
       }
     }
 
-    registerDisconnect()
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange)
       clearTimeout(leaveTimer)
-      cancelDisconnect()
+      onDisconnect(disconnectedAtRef).cancel()
     }
   }, [])
 
@@ -94,11 +95,14 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   useEffect(() => {
     if (!room || room.status === 'finished' || room.status === 'waiting') return
 
+    const TIMEOUT = 60000
+    const now = Date.now() + serverTimeOffset
+    const isActive = p => p && (!p.disconnectedAt || now - p.disconnectedAt < TIMEOUT)
+
     const currentPlayers = room.players || {}
     const order = room.playerOrder || []
-    const remainingIds = order.filter(id => currentPlayers[id])
+    const remainingIds = order.filter(id => isActive(currentPlayers[id]))
 
-    // Only 1 (or 0) players left → end game immediately
     if (remainingIds.length < 2) {
       if (remainingIds[0] === myPlayerId) {
         update(ref(db, `rooms/${roomId}`), { status: 'finished' })
@@ -106,19 +110,17 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       return
     }
 
-    // Active player left mid-turn → first remaining player advances the turn
     const activeId = order[room.turnIndex]
-    if (activeId && !currentPlayers[activeId] && remainingIds[0] === myPlayerId) {
-      advanceAfterDisconnect(currentPlayers, remainingIds)
+    if (activeId && !isActive(currentPlayers[activeId]) && remainingIds[0] === myPlayerId) {
+      advanceAfterDisconnect(currentPlayers, remainingIds, isActive)
     }
-  }, [JSON.stringify(Object.keys(room?.players || {}).sort()), room?.status])
+  }, [JSON.stringify(Object.entries(room?.players || {}).map(([id, p]) => `${id}:${p?.disconnectedAt||''}`).sort()), room?.status, serverTimeOffset])
 
-  async function advanceAfterDisconnect(currentPlayers, remainingIds) {
+  async function advanceAfterDisconnect(currentPlayers, remainingIds, isActive) {
     const order = room.playerOrder || []
-    // Find next turn index with a connected player
     let next = (room.turnIndex + 1) % order.length
     for (let i = 0; i < order.length; i++) {
-      if (currentPlayers[order[next]]) break
+      if (isActive(currentPlayers[order[next]])) break
       next = (next + 1) % order.length
     }
     const newCycles = next <= room.turnIndex ? room.cyclesDone + 1 : room.cyclesDone
@@ -200,6 +202,10 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       challenge: null,
       [`players/${idx}/score`]: prevScore + roundScore,
     })
+  }
+
+  async function handleSkipChallenge() {
+    await update(ref(db, `rooms/${roomId}`), { revealedAt: null })
   }
 
   async function handleChallenge() {
@@ -385,6 +391,12 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
             timeLimit={room.config?.maxTurnTime || null}
             startedAt={room.turnStartedAt || null}
           />
+          {challengeWindowOpen && !challengePending && (
+            <button onClick={handleSkipChallenge}
+              className="mt-2 bg-gray-800 hover:bg-gray-700 text-gray-400 font-semibold px-6 py-2 rounded-2xl text-sm transition">
+              דלג על אתגר ↩
+            </button>
+          )}
           {challengePending && (
             <div className="mt-3 animate-pulse" dir="rtl" style={{ animation: 'popIn 0.3s ease-out' }}>
               <p className="text-orange-400 font-bold text-sm text-center">⚔️ {room.challenge.challengerName} מאתגר...</p>
@@ -403,7 +415,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       )
     }
     // Spectator
-    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} serverTimeOffset={serverTimeOffset} />
+    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} onSkipChallenge={handleSkipChallenge} serverTimeOffset={serverTimeOffset} />
   }
 
   // End screen

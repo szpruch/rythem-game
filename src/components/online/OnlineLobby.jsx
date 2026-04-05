@@ -124,6 +124,7 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
           <input
             value={playerName}
             onChange={e => saveName(e.target.value)}
+            onFocus={e => e.target.select()}
             placeholder="הכנס שם..."
             dir="rtl"
             className="bg-gray-800 text-white rounded-xl px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-indigo-500 text-right"
