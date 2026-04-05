@@ -257,6 +257,8 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
             hasChallengeable={!!results}
             onChallenge={onChallenge}
             onChallengeSubmit={onChallengeSubmit}
+            roundScore={results?.roundScore}
+            activePlayerName={activePlayerName}
           />
         )}
 
@@ -305,18 +307,6 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
                 )}
               </button>
             </div>
-            {room.challenge?.status === 'answered' && room.challenge.result && (() => {
-              const cr = room.challenge.result
-              const earned = cr.titlePoints + cr.artistPoints
-              return (
-                <div className="border-t border-orange-800/40 px-3 py-2 flex items-center justify-between" dir="rtl">
-                  <span className="text-orange-400 text-xs font-bold">⚔️ {room.challenge.challengerName}</span>
-                  <span dir="ltr" className={`font-bold text-sm ${cr.net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    −5{earned > 0 ? ` + ${earned}` : ''} = {cr.net >= 0 ? '+' : ''}{cr.net}
-                  </span>
-                </div>
-              )
-            })()}
           </div>
         ) : !revealed && !challengeWindowOpen && !room.challenge ? (
           <div className="text-center py-4">

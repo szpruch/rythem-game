@@ -368,7 +368,8 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
           )}
           {challengeAnswered && showReveal && (
             <div className="mt-3 w-full max-w-md">
-              <ChallengePanel challenge={room.challenge} myPlayerId={myPlayerId} windowOpen={false} countdown={0} hasChallengeable={false} onChallenge={null} onChallengeSubmit={null} />
+              <ChallengePanel challenge={room.challenge} myPlayerId={myPlayerId} windowOpen={false} countdown={0} hasChallengeable={false} onChallenge={null} onChallengeSubmit={null}
+                roundScore={room.results?.roundScore} activePlayerName={players[myPlayerId]?.name} />
             </div>
           )}
           <button onClick={handleLeave} className="mt-4 text-gray-600 hover:text-gray-400 text-xs transition">

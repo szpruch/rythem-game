@@ -3,6 +3,7 @@ import { useState } from 'react'
 export default function ChallengePanel({
   challenge, myPlayerId, windowOpen, countdown,
   hasChallengeable, onChallenge, onChallengeSubmit,
+  roundScore, activePlayerName,
 }) {
   const [guessTitle, setGuessTitle] = useState('')
   const [guessArtist, setGuessArtist] = useState('')
@@ -69,9 +70,21 @@ export default function ChallengePanel({
   // ── 4. Challenge answered: results ──────────────────────────────────
   if (challenge?.status === 'answered') {
     const r = challenge.result || {}
+    const earned = (r.titlePoints || 0) + (r.artistPoints || 0)
     return (
       <div className="bg-orange-950/30 border border-orange-700/50 rounded-2xl p-3 flex flex-col gap-2"
         dir="rtl" style={{ animation: 'popIn 0.3s ease-out' }}>
+
+        {/* Main player's round score */}
+        {activePlayerName != null && roundScore != null && (
+          <div className="flex items-center justify-between pb-1 border-b border-orange-800/40">
+            <span className="text-gray-400 text-xs">🎯 {activePlayerName}</span>
+            <span dir="ltr" className={`font-black text-lg ${roundScore >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {roundScore >= 0 ? '+' : ''}{roundScore}
+            </span>
+          </div>
+        )}
+
         <p className="text-orange-400 font-bold text-xs uppercase tracking-widest text-center">
           ⚔️ תוצאת המאתגר — {challenge.challengerName}
         </p>
@@ -108,6 +121,27 @@ export default function ChallengePanel({
             </div>
           </div>
         )}
+
+        {/* Challenger score breakdown */}
+        <div className="border-t border-orange-800/40 pt-2 flex flex-col gap-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500">עלות אתגר</span>
+            <span dir="ltr" className="text-red-400 font-bold">−5</span>
+          </div>
+          {earned > 0 && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500">זכיה</span>
+              <span dir="ltr" className="text-green-400 font-bold">+{earned}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between text-sm font-black mt-0.5">
+            <span className="text-gray-400">סה״כ</span>
+            <span dir="ltr" className={r.net >= 0 ? 'text-green-400' : 'text-red-400'}>
+              {r.net >= 0 ? '+' : ''}{r.net}
+            </span>
+          </div>
+        </div>
+
       </div>
     )
   }
