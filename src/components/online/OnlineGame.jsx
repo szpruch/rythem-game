@@ -83,7 +83,10 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange)
       clearTimeout(leaveTimer)
-      onDisconnect(disconnectedAtRef).cancel()
+      // Do NOT cancel onDisconnect here — if the browser closes/refreshes,
+      // React cleanup runs and would cancel the handler before the connection drops,
+      // preventing disconnectedAt from ever being stamped (zombie rooms).
+      // handleLeave() removes the player via transaction, so the stamp is harmless there.
     }
   }, [])
 
