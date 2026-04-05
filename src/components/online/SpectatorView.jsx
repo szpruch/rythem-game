@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { getVideoId } from '../../utils/youtube'
 import YouTubePlayer from '../YouTubePlayer'
+import ChallengePanel from './ChallengePanel'
 
 const LINE_PENALTY = { 1: 0, 2: 4, 3: 8 }
 const DURATION_PENALTY = { 3: 1, 6: 4, 9: 8 }
@@ -19,12 +20,14 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SpectatorView({ room, myPlayerId, onLeave }) {
+export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, onChallengeSubmit }) {
   const playerRef = useRef(null)
   const lastAudioId = useRef(null)
   const prevHebrewCount = useRef(0)
   const prevEnglishCount = useRef(0)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [challengeWindowOpen, setChallengeWindowOpen] = useState(false)
+  const [challengeCountdown, setChallengeCountdown] = useState(5)
 
   const timeLimit = room.config?.maxTurnTime || null
   const startedAt = room.turnStartedAt || null
@@ -83,6 +86,24 @@ export default function SpectatorView({ room, myPlayerId, onLeave }) {
     }
     prevEnglishCount.current = count
   }, [hints.englishCount])
+
+  // Challenge countdown window (5s after reveal)
+  useEffect(() => {
+    const revealedAt = room.revealedAt
+    if (!revealedAt || room.challenge || room.status !== 'revealed') {
+      setChallengeWindowOpen(false)
+      return
+    }
+    const tick = () => {
+      const ms = 5000 - (Date.now() - revealedAt)
+      if (ms <= 0) { setChallengeWindowOpen(false); return }
+      setChallengeWindowOpen(true)
+      setChallengeCountdown(Math.ceil(ms / 1000))
+    }
+    tick()
+    const id = setInterval(tick, 100)
+    return () => clearInterval(id)
+  }, [room.revealedAt, !!room.challenge, room.status])
 
   if (!song) return (
     <div className="min-h-screen bg-[#0d0d1f] flex items-center justify-center">
@@ -209,8 +230,21 @@ export default function SpectatorView({ room, myPlayerId, onLeave }) {
           </div>
         </div>
 
-        {/* Revealed results */}
-        {revealed && results ? (
+        {/* Challenge panel — visible to non-active players during window or while pending/answered */}
+        {(challengeWindowOpen || room.challenge) && (
+          <ChallengePanel
+            challenge={room.challenge || null}
+            myPlayerId={myPlayerId}
+            windowOpen={challengeWindowOpen}
+            countdown={challengeCountdown}
+            hasChallengeable={!!(results && (!results.title || !results.artist))}
+            onChallenge={onChallenge}
+            onChallengeSubmit={onChallengeSubmit}
+          />
+        )}
+
+        {/* Revealed results — hidden during active challenge window or pending challenge */}
+        {revealed && results && !challengeWindowOpen && room.challenge?.status !== 'pending' ? (
           <div className="bg-gray-900 border border-indigo-700/50 rounded-2xl overflow-hidden" dir="rtl">
             <p className="text-center text-gray-400 text-xs uppercase tracking-widest pt-3 pb-1">תוצאה</p>
             <div className="flex flex-col gap-2 px-3 pb-2">
@@ -256,11 +290,11 @@ export default function SpectatorView({ room, myPlayerId, onLeave }) {
               </div>
             </div>
           </div>
-        ) : (
+        ) : !revealed && !challengeWindowOpen && !room.challenge ? (
           <div className="text-center py-4">
             <p className="text-gray-500 text-sm animate-pulse">ממתין ל-{activePlayerName} שיחשוף...</p>
           </div>
-        )}
+        ) : null}
 
       </div>
     </div>

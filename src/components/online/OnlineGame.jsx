@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { ref, onValue, off, update, remove, onDisconnect } from 'firebase/database'
+import { ref, onValue, off, update, remove, onDisconnect, runTransaction } from 'firebase/database'
 import { db, EMPTY_HINTS } from '../../firebase'
+import { isCloseMatch } from '../../utils/fuzzy'
 import SongCard from '../SongCard'
 import SpectatorView from './SpectatorView'
 import LobbyPage from '../LobbyPage'
@@ -97,6 +98,8 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       hints: EMPTY_HINTS,
       status: 'lobby',
       currentSong: null,
+      challenge: null,
+      revealedAt: null,
     })
   }
 
@@ -145,11 +148,82 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       revealed: true,
       results: { ...results, roundScore },
       status: 'revealed',
+      revealedAt: Date.now(),
+      challenge: null,
       [`players/${idx}/score`]: prevScore + roundScore,
     })
   }
 
+  async function handleChallenge() {
+    const myName = players[myPlayerId]?.name || '?'
+    await runTransaction(ref(db, `rooms/${roomId}/challenge`), current => {
+      if (current !== null) return // already claimed — abort
+      return { challengerId: myPlayerId, challengerName: myName, status: 'pending' }
+    })
+  }
+
+  async function handleChallengeSubmit(guessTitle, guessArtist) {
+    const results = room.results || {}
+    const song = room.currentSong || {}
+
+    // Evaluate title — only if active player got it WRONG
+    let titleChecked = false, titleCorrect = false, titlePoints = 0, titleAnswer = song.song_title || ''
+    if (!results.title) {
+      titleChecked = true
+      titleCorrect = isCloseMatch(guessTitle, song.song_title)
+      titlePoints = titleCorrect ? 10 : 0
+    }
+
+    // Evaluate artist — only if active player got it WRONG (not even partial)
+    let artistChecked = false, artistCorrect = false, artistPartial = false, artistPoints = 0
+    const artistAnswer = [song.artist_name_1, song.artist_name_2, song.artist_name_3].filter(Boolean).join(' ו')
+    if (!results.artist && !results.artistPartial) {
+      artistChecked = true
+      const names = [song.artist_name_1, song.artist_name_2, song.artist_name_3].filter(Boolean)
+      const g = guessArtist?.trim() || ''
+      if (names.some(n => isCloseMatch(g, n))) {
+        artistCorrect = true
+        artistPoints = 6
+      } else {
+        // partial: any word in guess matches any artist name word
+        const gWords = g.toLowerCase().split(/\s+/)
+        artistPartial = names.some(n =>
+          n.toLowerCase().split(/\s+/).some(w => gWords.includes(w))
+        )
+        artistPoints = artistPartial ? 3 : 0
+      }
+    } else if (results.artistPartial && !results.artist) {
+      // Active had fuzzy (~✓) — challenger can only get petty credit
+      artistChecked = true
+      const names = [song.artist_name_1, song.artist_name_2, song.artist_name_3].filter(Boolean)
+      const g = guessArtist?.trim() || ''
+      artistCorrect = names.some(n => isCloseMatch(g, n))
+      artistPartial = !artistCorrect
+      artistPoints = artistCorrect ? 0 : 0 // no points either way — counted as petty below
+    }
+
+    // "Petty" = only challenged a fuzzy match and didn't do better
+    const petty = !results.artist && results.artistPartial && artistChecked && !artistCorrect
+
+    const net = titlePoints + artistPoints - 5 // -5 challenge cost
+
+    // Update challenger's score
+    const challengerId = room.challenge?.challengerId
+    const prevScore = room.players?.[challengerId]?.score || 0
+    await update(ref(db, `rooms/${roomId}`), {
+      [`players/${challengerId}/score`]: prevScore + net,
+      challenge: {
+        ...room.challenge,
+        status: 'answered',
+        guessTitle: guessTitle.trim(),
+        guessArtist: guessArtist.trim(),
+        result: { titleChecked, titleCorrect, titlePoints, titleAnswer, artistChecked, artistCorrect, artistPartial, artistPoints, artistAnswer, net, petty },
+      },
+    })
+  }
+
   async function handleNext() {
+    if (room.challenge?.status === 'pending') return
     const usedUrls = [...(room.usedUrls || []), room.currentSong.youtube_url]
     const nextTurn = (room.turnIndex + 1) % room.playerOrder.length
     const newCycles = nextTurn === 0 ? room.cyclesDone + 1 : room.cyclesDone
@@ -177,6 +251,8 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       hints: EMPTY_HINTS,
       status: 'lobby',
       currentSong: null,
+      challenge: null,
+      revealedAt: null,
     })
   }
 
@@ -227,6 +303,8 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   // Active player's turn
   if (status === 'guessing' || status === 'revealed') {
     if (isActivePlayer) {
+      const challengePending = room.challenge?.status === 'pending'
+      const challengeAnswered = room.challenge?.status === 'answered'
       return (
         <div className={BG}>
           <SongCard
@@ -234,7 +312,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
             song={room.currentSong}
             revealed={localRevealed}
             onDone={handleDone}
-            onNext={handleNext}
+            onNext={challengePending ? null : handleNext}
             round={room.cyclesDone + 1}
             totalScore={localScore}
             playerName={players[myPlayerId]?.name}
@@ -243,6 +321,19 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
             timeLimit={room.config?.maxTurnTime || null}
             startedAt={room.turnStartedAt || null}
           />
+          {challengePending && (
+            <div className="mt-3 flex flex-col items-center gap-1 animate-pulse" dir="rtl"
+              style={{ animation: 'popIn 0.3s ease-out' }}>
+              <p className="text-orange-400 font-bold text-sm">⚔️ {room.challenge.challengerName} מאתגר...</p>
+            </div>
+          )}
+          {challengeAnswered && (
+            <button onClick={handleNext}
+              className="mt-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-2xl transition"
+              style={{ animation: 'popIn 0.3s ease-out' }}>
+              הבא ▶
+            </button>
+          )}
           <button onClick={handleLeave} className="mt-4 text-gray-600 hover:text-gray-400 text-xs transition">
             עזוב משחק ←
           </button>
@@ -250,7 +341,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       )
     }
     // Spectator
-    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} />
+    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} />
   }
 
   // End screen
