@@ -16,6 +16,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   const [localScore, setLocalScore] = useState(0)
   const [serverTimeOffset, setServerTimeOffset] = useState(0)
   const [challengeWindowOpen, setChallengeWindowOpen] = useState(false)
+  const [challengeCountdown, setChallengeCountdown] = useState(10)
 
   useEffect(() => {
     const roomRef = ref(db, `rooms/${roomId}`)
@@ -42,17 +43,39 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       const ms = 10000 - ((Date.now() + serverTimeOffset) - revealedAt)
       if (ms <= 0) { setChallengeWindowOpen(false); return }
       setChallengeWindowOpen(true)
+      setChallengeCountdown(Math.ceil(ms / 1000))
     }
     tick()
     const id = setInterval(tick, 100)
     return () => clearInterval(id)
   }, [room?.revealedAt, !!room?.challenge, room?.status, serverTimeOffset])
 
-  // On disconnect, remove only this player — disconnect detection handles game state
+  // Remove player on disconnect — with 1-minute grace period for tab switching
   useEffect(() => {
     const target = ref(db, `rooms/${roomId}/players/${myPlayerId}`)
-    onDisconnect(target).remove()
-    return () => onDisconnect(target).cancel()
+    let leaveTimer = null
+
+    const registerDisconnect = () => onDisconnect(target).remove()
+    const cancelDisconnect = () => onDisconnect(target).cancel()
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        cancelDisconnect()
+        leaveTimer = setTimeout(() => { handleLeave() }, 60000)
+      } else {
+        clearTimeout(leaveTimer)
+        leaveTimer = null
+        registerDisconnect()
+      }
+    }
+
+    registerDisconnect()
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      clearTimeout(leaveTimer)
+      cancelDisconnect()
+    }
   }, [])
 
   async function handleLeave() {
@@ -351,6 +374,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
             song={room.currentSong}
             revealed={showReveal}
             submittedPending={waitingForChallenge}
+            challengeCountdown={challengeWindowOpen && !challengePending ? challengeCountdown : null}
             onDone={handleDone}
             onNext={showReveal ? handleNext : null}
             round={room.cyclesDone + 1}

@@ -53,7 +53,7 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SongCard({ song, revealed, onDone, onNext, round, totalScore, playerName, onHintSync, onAudioEvent, timeLimit, startedAt, submittedPending = false }) {
+export default function SongCard({ song, revealed, onDone, onNext, round, totalScore, playerName, onHintSync, onAudioEvent, timeLimit, startedAt, submittedPending = false, challengeCountdown = null }) {
   const videoId = getVideoId(song.youtube_url)
   const playerRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -359,8 +359,17 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
       <div>
         {!revealed ? (
           submittedPending ? (
-            <div className="flex items-center justify-center py-6">
-              <p className="text-orange-400 font-bold text-base animate-pulse">⚔️ ממתין לחלון האתגר...</p>
+            <div className="flex flex-col items-center justify-center py-4 gap-1">
+              {challengeCountdown != null ? (
+                <>
+                  <div className={`text-6xl font-black tabular-nums ${challengeCountdown <= 3 ? 'text-red-400 animate-pulse' : challengeCountdown <= 6 ? 'text-yellow-400' : 'text-green-400'}`}>
+                    {challengeCountdown}
+                  </div>
+                  <p className="text-orange-400 text-sm font-bold">⚔️ חלון האתגר פתוח</p>
+                </>
+              ) : (
+                <p className="text-orange-400 font-bold text-base animate-pulse">⚔️ ממתין לסיום האתגר...</p>
+              )}
             </div>
           ) :
           <div className="grid grid-cols-3 gap-2 sm:gap-3 h-full" dir="rtl">
