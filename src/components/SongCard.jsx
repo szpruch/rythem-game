@@ -444,17 +444,15 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
             חשוף תשובה 🔍
           </button>
         </div>
+      ) : onNext ? (
+        <button onClick={onNext}
+          className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition border border-gray-700">
+          → שיר הבא
+        </button>
       ) : (
-        {onNext ? (
-          <button onClick={onNext}
-            className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition border border-gray-700">
-            → שיר הבא
-          </button>
-        ) : (
-          <div className="w-full bg-orange-950/40 border border-orange-700/50 text-orange-400 font-semibold py-3 rounded-2xl text-base sm:text-lg text-center animate-pulse">
-            ⚔️ ממתין לסיום האתגר...
-          </div>
-        )}
+        <div className="w-full bg-orange-950/40 border border-orange-700/50 text-orange-400 font-semibold py-3 rounded-2xl text-base sm:text-lg text-center animate-pulse">
+          ⚔️ ממתין לסיום האתגר...
+        </div>
       )}
     </div>
   )
