@@ -4,6 +4,7 @@ import { db, EMPTY_HINTS } from '../../firebase'
 import { isCloseMatch } from '../../utils/fuzzy'
 import SongCard from '../SongCard'
 import SpectatorView from './SpectatorView'
+import ChallengePanel from './ChallengePanel'
 import LobbyPage from '../LobbyPage'
 import Confetti from '../Confetti'
 
@@ -322,17 +323,19 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
             startedAt={room.turnStartedAt || null}
           />
           {challengePending && (
-            <div className="mt-3 flex flex-col items-center gap-1 animate-pulse" dir="rtl"
-              style={{ animation: 'popIn 0.3s ease-out' }}>
-              <p className="text-orange-400 font-bold text-sm">⚔️ {room.challenge.challengerName} מאתגר...</p>
+            <div className="mt-3 animate-pulse" dir="rtl" style={{ animation: 'popIn 0.3s ease-out' }}>
+              <p className="text-orange-400 font-bold text-sm text-center">⚔️ {room.challenge.challengerName} מאתגר...</p>
             </div>
           )}
           {challengeAnswered && (
-            <button onClick={handleNext}
-              className="mt-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-2xl transition"
-              style={{ animation: 'popIn 0.3s ease-out' }}>
-              הבא ▶
-            </button>
+            <div className="mt-3 w-full max-w-md flex flex-col gap-3">
+              <ChallengePanel challenge={room.challenge} myPlayerId={myPlayerId} windowOpen={false} countdown={0} hasChallengeable={false} onChallenge={null} onChallengeSubmit={null} />
+              <button onClick={handleNext}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-2xl transition"
+                style={{ animation: 'popIn 0.3s ease-out' }}>
+                הבא ▶
+              </button>
+            </div>
           )}
           <button onClick={handleLeave} className="mt-4 text-gray-600 hover:text-gray-400 text-xs transition">
             עזוב משחק ←

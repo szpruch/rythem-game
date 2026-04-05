@@ -238,7 +238,6 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
             {[
               { label: 'שיר', guess: results.guessTitle },
               { label: 'אמן', guess: results.guessArtist },
-              { label: 'שנה', guess: results.guessYear },
             ].map(({ label, guess }) => (
               <div key={label} className="flex items-center gap-2 text-sm">
                 <span className="text-gray-500 w-6 flex-shrink-0 text-right text-xs">{label}</span>
@@ -255,7 +254,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
             myPlayerId={myPlayerId}
             windowOpen={challengeWindowOpen}
             countdown={challengeCountdown}
-            hasChallengeable={!!(results && (!results.title || !results.artist))}
+            hasChallengeable={!!results}
             onChallenge={onChallenge}
             onChallengeSubmit={onChallengeSubmit}
           />
@@ -264,7 +263,12 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
         {/* Revealed results — hidden during active challenge window or pending challenge */}
         {revealed && results && !challengeWindowOpen && room.challenge?.status !== 'pending' ? (
           <div className="bg-gray-900 border border-indigo-700/50 rounded-2xl overflow-hidden" dir="rtl">
-            <p className="text-center text-gray-400 text-xs uppercase tracking-widest pt-3 pb-1">תוצאה</p>
+            <div className="flex items-center justify-between px-3 pt-3 pb-1">
+              <p className="text-gray-400 text-xs uppercase tracking-widest">תוצאה</p>
+              <span className={`font-black text-xl ${results.roundScore >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {results.roundScore >= 0 ? '+' : ''}{results.roundScore}
+              </span>
+            </div>
             <div className="flex flex-col gap-2 px-3 pb-2">
               {[
                 { label: 'שיר', guess: results.guessTitle, answer: song.song_title, correct: results.title, points: results.title ? '+10' : '0' },
@@ -290,6 +294,17 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
                 )
               })}
             </div>
+            <div className="border-t border-gray-700 px-3 py-2">
+              <button
+                onClick={() => isPlaying ? playerRef.current?.pause() : playerRef.current?.play()}
+                className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition shadow-lg shadow-red-600/40">
+                {isPlaying ? (
+                  <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5"><path d="M6 6h12v12H6z"/></svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 ml-0.5"><path d="M8 5v14l11-7z"/></svg>
+                )}
+              </button>
+            </div>
             {room.challenge?.status === 'answered' && room.challenge.result && (() => {
               const cr = room.challenge.result
               const earned = cr.titlePoints + cr.artistPoints
@@ -302,23 +317,6 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
                 </div>
               )
             })()}
-            <div className="border-t border-gray-700 px-3 py-2 flex items-center justify-between">
-              <button
-                onClick={() => isPlaying ? playerRef.current?.pause() : playerRef.current?.play()}
-                className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition shadow-lg shadow-red-600/40">
-                {isPlaying ? (
-                  <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5"><path d="M6 6h12v12H6z"/></svg>
-                ) : (
-                  <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 ml-0.5"><path d="M8 5v14l11-7z"/></svg>
-                )}
-              </button>
-              <div className="text-right">
-                <span className="text-gray-500 text-xs block">ניקוד הסיבוב</span>
-                <span className={`font-black text-2xl ${results.roundScore >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {results.roundScore >= 0 ? '+' : ''}{results.roundScore}
-                </span>
-              </div>
-            </div>
           </div>
         ) : !revealed && !challengeWindowOpen && !room.challenge ? (
           <div className="text-center py-4">

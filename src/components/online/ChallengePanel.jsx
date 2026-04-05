@@ -73,7 +73,7 @@ export default function ChallengePanel({
       <div className="bg-orange-950/30 border border-orange-700/50 rounded-2xl p-3 flex flex-col gap-2"
         dir="rtl" style={{ animation: 'popIn 0.3s ease-out' }}>
         <p className="text-orange-400 font-bold text-xs uppercase tracking-widest text-center">
-          ⚔️ תוצאת האתגר — {challenge.challengerName}
+          ⚔️ תוצאת המאתגר — {challenge.challengerName}
         </p>
         {r.petty && (
           <p className="text-yellow-400 font-black text-center text-base py-1 animate-bounce">
