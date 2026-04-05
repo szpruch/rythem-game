@@ -30,7 +30,7 @@ export function isCloseMatch(guess, answer) {
   const a = normalize(answer)
   if (g === a) return true
   const dist = levenshtein(g, a)
-  const threshold = Math.max(1, Math.floor(a.length * 0.3)) // allow 30% edits
+  const threshold = Math.max(1, Math.floor(a.length * 0.2)) // allow 20% edits
   return dist <= threshold
 }
 

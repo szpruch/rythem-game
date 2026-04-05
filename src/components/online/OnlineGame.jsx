@@ -22,25 +22,15 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     return () => off(roomRef, 'value', handler)
   }, [roomId])
 
-  // Auto-cleanup on disconnect (tab close / refresh / crash)
+  // On disconnect, remove only this player — disconnect detection handles game state
   useEffect(() => {
-    if (!room) return
-    const isHost = room.hostId === myPlayerId
-    const target = isHost
-      ? ref(db, `rooms/${roomId}`)
-      : ref(db, `rooms/${roomId}/players/${myPlayerId}`)
+    const target = ref(db, `rooms/${roomId}/players/${myPlayerId}`)
     onDisconnect(target).remove()
     return () => onDisconnect(target).cancel()
-  }, [room?.hostId])
+  }, [])
 
   async function handleLeave() {
-    if (!room) { onLeave(); return }
-    const isHost = room.hostId === myPlayerId
-    if (isHost) {
-      await remove(ref(db, `rooms/${roomId}`))
-    } else {
-      await remove(ref(db, `rooms/${roomId}/players/${myPlayerId}`))
-    }
+    await remove(ref(db, `rooms/${roomId}/players/${myPlayerId}`))
     onLeave()
   }
 
