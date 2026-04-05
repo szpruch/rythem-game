@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ref, onValue, off, update, remove, onDisconnect, runTransaction } from 'firebase/database'
+import { ref, onValue, off, update, remove, onDisconnect, runTransaction, serverTimestamp } from 'firebase/database'
 import { db, EMPTY_HINTS } from '../../firebase'
 import { isCloseMatch } from '../../utils/fuzzy'
 import SongCard from '../SongCard'
@@ -14,6 +14,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   const [room, setRoom] = useState(null)
   const [localRevealed, setLocalRevealed] = useState(false)
   const [localScore, setLocalScore] = useState(0)
+  const [serverTimeOffset, setServerTimeOffset] = useState(0)
 
   useEffect(() => {
     const roomRef = ref(db, `rooms/${roomId}`)
@@ -23,6 +24,12 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     })
     return () => off(roomRef, 'value', handler)
   }, [roomId])
+
+  useEffect(() => {
+    const offsetRef = ref(db, '.info/serverTimeOffset')
+    const handler = onValue(offsetRef, snap => setServerTimeOffset(snap.val() || 0))
+    return () => off(offsetRef, 'value', handler)
+  }, [])
 
   // On disconnect, remove only this player — disconnect detection handles game state
   useEffect(() => {
@@ -149,7 +156,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       revealed: true,
       results: { ...results, roundScore },
       status: 'revealed',
-      revealedAt: Date.now(),
+      revealedAt: serverTimestamp(),
       challenge: null,
       [`players/${idx}/score`]: prevScore + roundScore,
     })
@@ -344,7 +351,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       )
     }
     // Spectator
-    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} />
+    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} serverTimeOffset={serverTimeOffset} />
   }
 
   // End screen

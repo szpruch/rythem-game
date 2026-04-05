@@ -441,7 +441,7 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
           </button>
           <button onClick={handleReveal}
             className="flex-1 bg-purple-700 hover:bg-purple-600 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition shadow-lg shadow-purple-700/30">
-            חשוף תשובה 🔍
+            הגש ניחוש 🔍
           </button>
         </div>
       ) : onNext ? (

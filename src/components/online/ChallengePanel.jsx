@@ -108,12 +108,6 @@ export default function ChallengePanel({
             </div>
           </div>
         )}
-        <div className="border-t border-orange-800/50 pt-2 flex justify-between items-center">
-          <span className="text-gray-400 text-xs">סה"כ (כולל עלות -5)</span>
-          <span dir="ltr" className={`font-black text-xl ${r.net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {r.net >= 0 ? '+' : ''}{r.net}
-          </span>
-        </div>
       </div>
     )
   }

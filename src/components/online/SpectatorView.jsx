@@ -20,7 +20,7 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, onChallengeSubmit }) {
+export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, onChallengeSubmit, serverTimeOffset = 0 }) {
   const playerRef = useRef(null)
   const lastAudioId = useRef(null)
   const prevHebrewCount = useRef(0)
@@ -95,7 +95,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
       return
     }
     const tick = () => {
-      const ms = 10000 - (Date.now() - revealedAt)
+      const ms = 10000 - ((Date.now() + serverTimeOffset) - revealedAt)
       if (ms <= 0) { setChallengeWindowOpen(false); return }
       setChallengeWindowOpen(true)
       setChallengeCountdown(Math.ceil(ms / 1000))
@@ -103,7 +103,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
     tick()
     const id = setInterval(tick, 100)
     return () => clearInterval(id)
-  }, [room.revealedAt, !!room.challenge, room.status])
+  }, [room.revealedAt, !!room.challenge, room.status, serverTimeOffset])
 
   if (!song) return (
     <div className="min-h-screen bg-[#0d0d1f] flex items-center justify-center">
