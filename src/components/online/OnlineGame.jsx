@@ -463,6 +463,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
               onAudioEvent={handleAudioEvent}
               timeLimit={room.config?.maxTurnTime || null}
               startedAt={room.turnStartedAt || null}
+              language={room.config?.language || 'he'}
             />
             {challengePending && (
               <div className="mt-3 animate-pulse" dir="rtl" style={{ animation: 'popIn 0.3s ease-out' }}>

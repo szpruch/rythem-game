@@ -53,7 +53,7 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SongCard({ song, revealed, onDone, onNext, round, totalScore, playerName, onHintSync, onAudioEvent, timeLimit, startedAt, submittedPending = false, challengeCountdown = null }) {
+export default function SongCard({ song, revealed, onDone, onNext, round, totalScore, playerName, onHintSync, onAudioEvent, timeLimit, startedAt, submittedPending = false, challengeCountdown = null, language = 'he' }) {
   const videoId = getVideoId(song.youtube_url)
   const playerRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -109,6 +109,15 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
   const englishLines = [song.english_line_1, song.english_line_2, song.english_line_3].filter(Boolean)
   const artistNames = [song.artist_name_1, song.artist_name_2, song.artist_name_3].filter(Boolean)
   const artistDisplay = formatArtists(artistNames)
+
+  const isEnglish = language === 'en'
+  const englishColLabels = isEnglish
+    ? ['שורה אקראית באנגלית', 'השורה הקודמת והשורה שאחריה', 'שתי השורות הקודמות וזו שאחריהן']
+    : ['שורה ראשונה מתורגמת לאנגלית', 'שתי השורות הראשונות מתורגמות לאנגלית', 'שלוש השורות הראשונות מתורגמות לאנגלית']
+  const hebrewColLabels = isEnglish
+    ? ['שורה ראשונה מתורגמת לעברית', 'שתי השורות הראשונות מתורגמות לעברית', 'שלוש השורות הראשונות מתורגמות לעברית']
+    : ['שורה אקראית בעברית', 'השורה הקודמת והשורה שאחריה', 'שתי השורות הקודמות וזו שאחריהן']
+  const audioLabels = ['שמיעת 3 שניות ראשונות', 'שמיעת 6 שניות ראשונות', 'שמיעת 9 שניות ראשונות']
 
   useEffect(() => {
     if (!isPlaying) return
@@ -263,14 +272,14 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
               <button
                 key={n}
                 onClick={() => handleEnglishLine(n)}
-                className={`w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl transition-all relative ${
+                className={`w-full py-3 sm:py-4 rounded-2xl font-semibold text-xs sm:text-sm transition-all relative leading-tight px-2 ${
                   active ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' : 'bg-cyan-900 hover:bg-cyan-800 text-white'
                 }`}
               >
-                שורה {n}
+                <span className="block text-center">{englishColLabels[i]}</span>
                 {!paid && (n === 1
-                  ? <span className="absolute top-1 right-2 text-xs text-cyan-300/60">{freeHintUsed ? '-1' : 'חינם'}</span>
-                  : <span dir="ltr" className="absolute top-1 right-2 text-xs text-cyan-300/60">-{LINE_PENALTY[n]}</span>
+                  ? <span className="absolute top-1 right-1.5 text-xs text-cyan-300/60">{freeHintUsed ? '-1' : 'חינם'}</span>
+                  : <span dir="ltr" className="absolute top-1 right-1.5 text-xs text-cyan-300/60">-{LINE_PENALTY[n]}</span>
                 )}
               </button>
             )
@@ -288,14 +297,14 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
               <button
                 key={n}
                 onClick={() => handleHebrewLine(n)}
-                className={`w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl transition-all relative ${
+                className={`w-full py-3 sm:py-4 rounded-2xl font-semibold text-xs sm:text-sm transition-all relative leading-tight px-2 ${
                   active ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/30' : 'bg-violet-900 hover:bg-violet-800 text-white'
                 }`}
               >
-                שורה {n}
+                <span className="block text-center">{hebrewColLabels[i]}</span>
                 {!paid && (n === 1
-                  ? <span className="absolute top-1 right-2 text-xs text-violet-300/60">{freeHintUsed ? '-1' : 'חינם'}</span>
-                  : <span dir="ltr" className="absolute top-1 right-2 text-xs text-violet-300/60">-{LINE_PENALTY[n]}</span>
+                  ? <span className="absolute top-1 right-1.5 text-xs text-violet-300/60">{freeHintUsed ? '-1' : 'חינם'}</span>
+                  : <span dir="ltr" className="absolute top-1 right-1.5 text-xs text-violet-300/60">-{LINE_PENALTY[n]}</span>
                 )}
               </button>
             )
@@ -305,21 +314,18 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
         {/* Duration buttons */}
         <div className="flex flex-col gap-1.5 sm:gap-2">
           <p className="text-center text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">שיר</p>
-          {[3, 6, 9].map(s => {
+          {[3, 6, 9].map((s, i) => {
             const paid = paidClues.has(`song-${s}`)
             return (
               <button
                 key={s}
                 onClick={() => playForSeconds(s)}
-                className="w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl text-white bg-green-700 hover:bg-green-600 transition-all shadow-lg shadow-green-700/20 relative"
+                className="w-full py-3 sm:py-4 rounded-2xl font-semibold text-xs sm:text-sm text-white bg-green-700 hover:bg-green-600 transition-all shadow-lg shadow-green-700/20 relative leading-tight px-2"
               >
-                <span className="flex items-center justify-center gap-1">
-                  <span>שניות</span>
-                  <span dir="ltr">{s}</span>
-                </span>
+                <span className="block text-center">{audioLabels[i]}</span>
                 {!paid && (s === 3
-                  ? <span className="absolute top-1 right-2 text-xs text-green-300/60">{freeHintUsed ? '-1' : 'חינם'}</span>
-                  : <span dir="ltr" className="absolute top-1 right-2 text-xs text-green-300/60">-{DURATION_PENALTY[s]}</span>
+                  ? <span className="absolute top-1 right-1.5 text-xs text-green-300/60">{freeHintUsed ? '-1' : 'חינם'}</span>
+                  : <span dir="ltr" className="absolute top-1 right-1.5 text-xs text-green-300/60">-{DURATION_PENALTY[s]}</span>
                 )}
               </button>
             )

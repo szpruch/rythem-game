@@ -55,6 +55,15 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
   const hebrewLines = [song?.hebrew_line_1, song?.hebrew_line_2, song?.hebrew_line_3].filter(Boolean)
   const englishLines = [song?.english_line_1, song?.english_line_2, song?.english_line_3].filter(Boolean)
 
+  const isEnglish = room.config?.language === 'en'
+  const englishColLabels = isEnglish
+    ? ['שורה אקראית באנגלית', 'השורה הקודמת והשורה שאחריה', 'שתי השורות הקודמות וזו שאחריהן']
+    : ['שורה ראשונה מתורגמת לאנגלית', 'שתי השורות הראשונות מתורגמות לאנגלית', 'שלוש השורות הראשונות מתורגמות לאנגלית']
+  const hebrewColLabels = isEnglish
+    ? ['שורה ראשונה מתורגמת לעברית', 'שתי השורות הראשונות מתורגמות לעברית', 'שלוש השורות הראשונות מתורגמות לעברית']
+    : ['שורה אקראית בעברית', 'השורה הקודמת והשורה שאחריה', 'שתי השורות הקודמות וזו שאחריהן']
+  const audioLabels = ['שמיעת 3 שניות ראשונות', 'שמיעת 6 שניות ראשונות', 'שמיעת 9 שניות ראשונות']
+
   // Sync audio from active player's events
   useEffect(() => {
     const ev = hints.audioEvent
@@ -152,12 +161,12 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
               const n = i + 1
               const active = (hints.englishCount || 0) >= n
               return (
-                <div key={n} className={`w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl text-center relative ${
+                <div key={n} className={`w-full py-3 sm:py-4 rounded-2xl font-semibold text-xs sm:text-sm text-center relative leading-tight px-2 ${
                   active ? 'bg-cyan-500 text-white' : 'bg-cyan-900/50 text-gray-500'
                 }`}>
-                  שורה {n}
+                  {englishColLabels[i]}
                   {!paidClues[`en-${n}`] && LINE_PENALTY[n] > 0 && (
-                    <span className="absolute top-1 right-2 text-xs text-cyan-300/40">-{LINE_PENALTY[n]}</span>
+                    <span className="absolute top-1 right-1.5 text-xs text-cyan-300/40">-{LINE_PENALTY[n]}</span>
                   )}
                 </div>
               )
@@ -170,12 +179,12 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
               const n = i + 1
               const active = (hints.hebrewCount || 0) >= n
               return (
-                <div key={n} className={`w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl text-center relative ${
+                <div key={n} className={`w-full py-3 sm:py-4 rounded-2xl font-semibold text-xs sm:text-sm text-center relative leading-tight px-2 ${
                   active ? 'bg-violet-500 text-white' : 'bg-violet-900/50 text-gray-500'
                 }`}>
-                  שורה {n}
+                  {hebrewColLabels[i]}
                   {!paidClues[`he-${n}`] && LINE_PENALTY[n] > 0 && (
-                    <span className="absolute top-1 right-2 text-xs text-violet-300/40">-{LINE_PENALTY[n]}</span>
+                    <span className="absolute top-1 right-1.5 text-xs text-violet-300/40">-{LINE_PENALTY[n]}</span>
                   )}
                 </div>
               )
@@ -184,16 +193,13 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
 
           <div className="flex flex-col gap-1.5">
             <p className="text-center text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">שיר</p>
-            {[3, 6, 9].map(s => {
+            {[3, 6, 9].map((s, i) => {
               const active = (hints.songSeconds || 0) >= s || hints.fullPlay
               return (
-                <div key={s} className={`w-full py-3 sm:py-5 rounded-2xl font-bold text-base sm:text-xl text-center relative ${
+                <div key={s} className={`w-full py-3 sm:py-4 rounded-2xl font-semibold text-xs sm:text-sm text-center relative leading-tight px-2 ${
                   active ? 'bg-green-600 text-white' : 'bg-green-900/50 text-gray-500'
                 }`}>
-                  <span className="flex items-center justify-center gap-1">
-                    <span>שניות</span>
-                    <span dir="ltr">{s}</span>
-                  </span>
+                  {audioLabels[i]}
                 </div>
               )
             })}

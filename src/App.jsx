@@ -74,6 +74,7 @@ export default function App() {
   const [currentSong, setCurrentSong] = useState(null)
   const [revealed, setRevealed] = useState(false)
   const [yearRange, setYearRange] = useState(null)
+  const [gameLanguage, setGameLanguage] = useState('he')
 
   const csvYearsHe = useMemo(() => computeYears(songsHe), [songsHe])
   const csvYearsEn = useMemo(() => computeYears(songsEn), [songsEn])
@@ -91,6 +92,7 @@ export default function App() {
 
   function startGame(playerNames, mode, range, language) {
     const pool = language === 'en' ? songsEn : songsHe
+    setGameLanguage(language || 'he')
     setActiveSongs(pool)
     setPlayers(playerNames.map(name => ({ name, score: 0 })))
     setPlayerOrder(shuffle(playerNames.map((_, i) => i)))
@@ -213,6 +215,7 @@ export default function App() {
           round={cyclesDone + 1}
           totalScore={currentPlayer.score}
           playerName={currentPlayer.name}
+          language={gameLanguage}
         />
       </div>
     )
