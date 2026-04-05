@@ -53,7 +53,7 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SongCard({ song, revealed, onDone, onNext, round, totalScore, playerName, onHintSync, onAudioEvent, timeLimit, startedAt }) {
+export default function SongCard({ song, revealed, onDone, onNext, round, totalScore, playerName, onHintSync, onAudioEvent, timeLimit, startedAt, submittedPending = false }) {
   const videoId = getVideoId(song.youtube_url)
   const playerRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -358,6 +358,11 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
       {/* Switchable section — inputs before reveal, summary after */}
       <div>
         {!revealed ? (
+          submittedPending ? (
+            <div className="flex items-center justify-center py-6">
+              <p className="text-orange-400 font-bold text-base animate-pulse">⚔️ ממתין לחלון האתגר...</p>
+            </div>
+          ) :
           <div className="grid grid-cols-3 gap-2 sm:gap-3 h-full" dir="rtl">
             <div className="flex flex-col gap-1">
               <label className="text-xs text-gray-500 tracking-widest text-right">אמן</label>
@@ -434,16 +439,18 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
 
       {/* Bottom controls */}
       {!revealed ? (
-        <div className="flex items-center justify-center gap-3 sm:gap-4">
-          <button onClick={togglePlay}
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition-all shadow-lg shadow-red-600/40">
-            {isPlaying ? <StopIcon /> : <PlayIcon />}
-          </button>
-          <button onClick={handleReveal}
-            className="flex-1 bg-purple-700 hover:bg-purple-600 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition shadow-lg shadow-purple-700/30">
-            הגש ניחוש 🔍
-          </button>
-        </div>
+        submittedPending ? null : (
+          <div className="flex items-center justify-center gap-3 sm:gap-4">
+            <button onClick={togglePlay}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition-all shadow-lg shadow-red-600/40">
+              {isPlaying ? <StopIcon /> : <PlayIcon />}
+            </button>
+            <button onClick={handleReveal}
+              className="flex-1 bg-purple-700 hover:bg-purple-600 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition shadow-lg shadow-purple-700/30">
+              הגש ניחוש 🔍
+            </button>
+          </div>
+        )
       ) : onNext ? (
         <button onClick={onNext}
           className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-2xl text-base sm:text-lg transition border border-gray-700">

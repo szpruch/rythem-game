@@ -15,6 +15,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   const [localRevealed, setLocalRevealed] = useState(false)
   const [localScore, setLocalScore] = useState(0)
   const [serverTimeOffset, setServerTimeOffset] = useState(0)
+  const [challengeWindowOpen, setChallengeWindowOpen] = useState(false)
 
   useEffect(() => {
     const roomRef = ref(db, `rooms/${roomId}`)
@@ -30,6 +31,22 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     const handler = onValue(offsetRef, snap => setServerTimeOffset(snap.val() || 0))
     return () => off(offsetRef, 'value', handler)
   }, [])
+
+  // Mirror challenge window tracking for the active player
+  useEffect(() => {
+    const revealedAt = room?.revealedAt
+    if (!revealedAt || room?.challenge || room?.status !== 'revealed' || room?.config?.challengeEnabled === false) {
+      setChallengeWindowOpen(false); return
+    }
+    const tick = () => {
+      const ms = 10000 - ((Date.now() + serverTimeOffset) - revealedAt)
+      if (ms <= 0) { setChallengeWindowOpen(false); return }
+      setChallengeWindowOpen(true)
+    }
+    tick()
+    const id = setInterval(tick, 100)
+    return () => clearInterval(id)
+  }, [room?.revealedAt, !!room?.challenge, room?.status, serverTimeOffset])
 
   // On disconnect, remove only this player — disconnect detection handles game state
   useEffect(() => {
@@ -173,49 +190,61 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   async function handleChallengeSubmit(guessTitle, guessArtist) {
     const results = room.results || {}
     const song = room.currentSong || {}
+    const names = [song.artist_name_1, song.artist_name_2, song.artist_name_3].filter(Boolean)
+    const titleAnswer = song.song_title || ''
+    const artistAnswer = names.join(' ו')
 
-    // Evaluate title — only if active player got it WRONG
-    let titleChecked = false, titleCorrect = false, titlePoints = 0, titleAnswer = song.song_title || ''
-    if (!results.title) {
-      titleChecked = true
-      titleCorrect = isCloseMatch(guessTitle, song.song_title)
-      titlePoints = titleCorrect ? 10 : 0
+    function matchArtist(g) {
+      if (!g?.trim() || names.length === 0) return { correct: false, partial: false, points: 0 }
+      if (names.some(n => isCloseMatch(g, n))) return { correct: true, partial: false, points: 6 }
+      const partial = names.some(n => n.toLowerCase().split(/\s+/).some(w => g.toLowerCase().split(/\s+/).includes(w)))
+      return { correct: false, partial, points: partial ? 3 : 0 }
     }
 
-    // Evaluate artist — only if active player got it WRONG (not even partial)
+    const titleChallengeable = !results.title
+    const artistChallengeable = !results.artist && !results.artistPartial
+    const artistPettyCase = results.artistPartial && !results.artist
+
+    let titleChecked = false, titleCorrect = false, titlePoints = 0
     let artistChecked = false, artistCorrect = false, artistPartial = false, artistPoints = 0
-    const artistAnswer = [song.artist_name_1, song.artist_name_2, song.artist_name_3].filter(Boolean).join(' ו')
-    if (!results.artist && !results.artistPartial) {
-      artistChecked = true
-      const names = [song.artist_name_1, song.artist_name_2, song.artist_name_3].filter(Boolean)
-      const g = guessArtist?.trim() || ''
-      if (names.some(n => isCloseMatch(g, n))) {
-        artistCorrect = true
-        artistPoints = 6
-      } else {
-        // partial: any word in guess matches any artist name word
-        const gWords = g.toLowerCase().split(/\s+/)
-        artistPartial = names.some(n =>
-          n.toLowerCase().split(/\s+/).some(w => gWords.includes(w))
-        )
-        artistPoints = artistPartial ? 3 : 0
+    let petty = false
+
+    if (titleChallengeable || artistChallengeable) {
+      // Try both normal and swapped assignments, take the better total
+      const normalTitleOk = titleChallengeable ? isCloseMatch(guessTitle, song.song_title) : false
+      const normalArtist = artistChallengeable ? matchArtist(guessArtist) : { correct: false, partial: false, points: 0 }
+      const swapTitleOk = titleChallengeable ? isCloseMatch(guessArtist, song.song_title) : false
+      const swapArtist = artistChallengeable ? matchArtist(guessTitle) : { correct: false, partial: false, points: 0 }
+
+      const normalTotal = (normalTitleOk ? 10 : 0) + normalArtist.points
+      const swapTotal = (swapTitleOk ? 10 : 0) + swapArtist.points
+      const useSwap = swapTotal > normalTotal
+
+      if (titleChallengeable) {
+        titleChecked = true
+        titleCorrect = useSwap ? swapTitleOk : normalTitleOk
+        titlePoints = titleCorrect ? 10 : 0
       }
-    } else if (results.artistPartial && !results.artist) {
-      // Active had fuzzy (~✓) — challenger can only get petty credit
-      artistChecked = true
-      const names = [song.artist_name_1, song.artist_name_2, song.artist_name_3].filter(Boolean)
-      const g = guessArtist?.trim() || ''
-      artistCorrect = names.some(n => isCloseMatch(g, n))
-      artistPartial = !artistCorrect
-      artistPoints = artistCorrect ? 0 : 0 // no points either way — counted as petty below
+      if (artistChallengeable) {
+        artistChecked = true
+        const ar = useSwap ? swapArtist : normalArtist
+        artistCorrect = ar.correct; artistPartial = ar.partial; artistPoints = ar.points
+      }
     }
 
-    // "Petty" = only challenged a fuzzy match and didn't do better
-    const petty = !results.artist && results.artistPartial && artistChecked && !artistCorrect
+    if (artistPettyCase) {
+      // Active had ~✓ — challenger gets no points but we record the attempt
+      artistChecked = true
+      const ar1 = matchArtist(guessArtist)
+      const ar2 = matchArtist(guessTitle)
+      const best = ar1.points >= ar2.points ? ar1 : ar2
+      artistCorrect = best.correct; artistPartial = best.partial
+      petty = !artistCorrect
+      artistPoints = 0
+    }
 
-    const net = titlePoints + artistPoints - 5 // -5 challenge cost
+    const net = titlePoints + artistPoints - 5
 
-    // Update challenger's score
     const challengerId = room.challenge?.challengerId
     const prevScore = room.players?.[challengerId]?.score || 0
     await update(ref(db, `rooms/${roomId}`), {
@@ -313,14 +342,17 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     if (isActivePlayer) {
       const challengePending = room.challenge?.status === 'pending'
       const challengeAnswered = room.challenge?.status === 'answered'
+      const waitingForChallenge = localRevealed && (challengeWindowOpen || challengePending)
+      const showReveal = localRevealed && !waitingForChallenge
       return (
         <div className={BG}>
           <SongCard
             key={room.currentSong?.youtube_url}
             song={room.currentSong}
-            revealed={localRevealed}
+            revealed={showReveal}
+            submittedPending={waitingForChallenge}
             onDone={handleDone}
-            onNext={challengePending ? null : handleNext}
+            onNext={showReveal ? handleNext : null}
             round={room.cyclesDone + 1}
             totalScore={localScore}
             playerName={players[myPlayerId]?.name}
@@ -334,14 +366,9 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
               <p className="text-orange-400 font-bold text-sm text-center">⚔️ {room.challenge.challengerName} מאתגר...</p>
             </div>
           )}
-          {challengeAnswered && (
-            <div className="mt-3 w-full max-w-md flex flex-col gap-3">
+          {challengeAnswered && showReveal && (
+            <div className="mt-3 w-full max-w-md">
               <ChallengePanel challenge={room.challenge} myPlayerId={myPlayerId} windowOpen={false} countdown={0} hasChallengeable={false} onChallenge={null} onChallengeSubmit={null} />
-              <button onClick={handleNext}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-2xl transition"
-                style={{ animation: 'popIn 0.3s ease-out' }}>
-                הבא ▶
-              </button>
             </div>
           )}
           <button onClick={handleLeave} className="mt-4 text-gray-600 hover:text-gray-400 text-xs transition">

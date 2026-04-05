@@ -90,7 +90,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
   // Challenge countdown window (10s after reveal)
   useEffect(() => {
     const revealedAt = room.revealedAt
-    if (!revealedAt || room.challenge || room.status !== 'revealed') {
+    if (!revealedAt || room.challenge || room.status !== 'revealed' || room.config?.challengeEnabled === false) {
       setChallengeWindowOpen(false)
       return
     }

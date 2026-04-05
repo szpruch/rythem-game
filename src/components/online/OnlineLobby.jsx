@@ -22,6 +22,7 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
   const [maxYear, setMaxYear] = useState(null)
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(false)
   const [maxTurnTime, setMaxTurnTime] = useState(120) // seconds
+  const [challengeEnabled, setChallengeEnabled] = useState(true)
 
   const csvYears = language === 'en' ? csvYearsEn : csvYearsHe
 
@@ -82,7 +83,7 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
       status: 'waiting',
       hostId: playerId,
       createdAt: Date.now(),
-      config: { language, gameMode, maxPlayers, yearRange, maxTurnTime: timeLimitEnabled ? maxTurnTime : null },
+      config: { language, gameMode, maxPlayers, yearRange, maxTurnTime: timeLimitEnabled ? maxTurnTime : null, challengeEnabled },
       players: { [playerId]: { name: playerName.trim(), score: 0 } },
       hints: EMPTY_HINTS,
       turnIndex: 0,
@@ -291,6 +292,20 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Challenge option */}
+            <div className={cardCls} dir="rtl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-white font-bold">אתגר ⚔️</h2>
+                  <p className="text-gray-500 text-xs mt-0.5">שחקנים יכולים לאתגר תשובות לאחר כל תור</p>
+                </div>
+                <button onClick={() => setChallengeEnabled(v => !v)}
+                  className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${challengeEnabled ? 'bg-indigo-600' : 'bg-gray-700'}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${challengeEnabled ? 'right-0.5' : 'left-0.5'}`} />
+                </button>
+              </div>
             </div>
 
             {/* Year range */}
