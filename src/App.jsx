@@ -8,6 +8,7 @@ import LobbyPage from './components/LobbyPage'
 import Confetti from './components/Confetti'
 import ModeSelectPage from './components/ModeSelectPage'
 import OnlineApp from './OnlineApp'
+import HelpButton from './components/HelpButton'
 
 const STATS_SECRET = 'szpru2024'
 
@@ -259,6 +260,7 @@ export default function App() {
             ← תפריט ראשי
           </button>
         </div>
+        <HelpButton />
       </div>
     )
   }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
+import HelpButton from './HelpButton'
 
 function StatsModal({ songs, onClose }) {
   const { total, decades } = useMemo(() => {
@@ -245,6 +246,7 @@ export default function SetupPage({ onStart, onBack, songsHe = [], songsEn = [],
         </button>
 
       </div>
+      <HelpButton />
     </div>
   )
 }

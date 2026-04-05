@@ -1,3 +1,5 @@
+import HelpButton from './HelpButton'
+
 export default function LobbyPage({ players, currentPlayerIdx, gameMode, cyclesDone, onReady, waitingFor }) {
   const sorted = players
     .map((p, i) => ({ ...p, origIdx: i }))
@@ -70,6 +72,7 @@ export default function LobbyPage({ players, currentPlayerIdx, gameMode, cyclesD
         )}
 
       </div>
+      <HelpButton />
     </div>
   )
 }

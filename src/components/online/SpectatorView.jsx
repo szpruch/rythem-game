@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react'
 import { getVideoId } from '../../utils/youtube'
 import YouTubePlayer from '../YouTubePlayer'
 import ChallengePanel from './ChallengePanel'
+import HelpButton from '../HelpButton'
 
 const LINE_PENALTY = { 1: 0, 2: 4, 3: 8 }
 const DURATION_PENALTY = { 3: 1, 6: 4, 9: 8 }
@@ -87,6 +88,26 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
     prevEnglishCount.current = count
   }, [hints.englishCount])
 
+  // Transparent audio unlock — fires on first touch/click anywhere
+  useEffect(() => {
+    if (unlockedVideoId === videoId) return
+    function unlock() {
+      playerRef.current?.play()
+      setTimeout(() => playerRef.current?.pause(), 300)
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel()
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance(''))
+      }
+      onAudioUnlock(videoId)
+    }
+    document.addEventListener('touchstart', unlock, { once: true, passive: true })
+    document.addEventListener('click', unlock, { once: true })
+    return () => {
+      document.removeEventListener('touchstart', unlock)
+      document.removeEventListener('click', unlock)
+    }
+  }, [videoId, unlockedVideoId])
+
   // Challenge countdown window (10s after reveal)
   useEffect(() => {
     const revealedAt = room.revealedAt
@@ -119,25 +140,20 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
       <YouTubePlayer ref={playerRef} videoId={videoId} onPlayStateChange={setIsPlaying} />
 
       {unlockedVideoId !== videoId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <button
-            onClick={() => {
-              // Unlock YouTube player for this song
-              playerRef.current?.play()
-              setTimeout(() => playerRef.current?.pause(), 300)
-              // Unlock speechSynthesis (required separately on iOS)
-              if (window.speechSynthesis) {
-                const u = new SpeechSynthesisUtterance('')
-                window.speechSynthesis.cancel()
-                window.speechSynthesis.speak(u)
-              }
-              onAudioUnlock(videoId)
-            }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-10 py-6 rounded-3xl text-2xl shadow-2xl active:scale-95 transition"
-            style={{ animation: 'popIn 0.4s ease-out' }}>
-            🔊 הפעל שמע
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            playerRef.current?.play()
+            setTimeout(() => playerRef.current?.pause(), 300)
+            if (window.speechSynthesis) {
+              window.speechSynthesis.cancel()
+              window.speechSynthesis.speak(new SpeechSynthesisUtterance(''))
+            }
+            onAudioUnlock(videoId)
+          }}
+          className="fixed top-3 right-3 z-50 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold px-3 py-1.5 rounded-xl text-sm shadow-lg transition flex items-center gap-1.5"
+          style={{ animation: 'popIn 0.3s ease-out' }}>
+          🔊 הפעל שמע
+        </button>
       )}
 
       <div className="w-full max-w-3xl flex flex-col gap-4">
@@ -339,6 +355,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
         ) : null}
 
       </div>
+      <HelpButton />
     </div>
   )
 }

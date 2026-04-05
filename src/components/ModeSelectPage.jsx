@@ -1,3 +1,5 @@
+import HelpButton from './HelpButton'
+
 export default function ModeSelectPage({ onLocal, onOnline }) {
   return (
     <div className="min-h-screen bg-[#0d0d1f] flex flex-col items-center justify-center p-6">
@@ -26,6 +28,7 @@ export default function ModeSelectPage({ onLocal, onOnline }) {
         </div>
 
       </div>
+      <HelpButton />
     </div>
   )
 }

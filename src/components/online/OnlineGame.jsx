@@ -7,6 +7,7 @@ import SpectatorView from './SpectatorView'
 import ChallengePanel from './ChallengePanel'
 import LobbyPage from '../LobbyPage'
 import Confetti from '../Confetti'
+import HelpButton from '../HelpButton'
 
 const BG = 'min-h-screen bg-[#0d0d1f] flex flex-col items-center justify-center p-6'
 
@@ -435,6 +436,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
           <button onClick={handleLeave} className="mt-4 text-gray-600 hover:text-gray-400 text-xs transition">
             עזוב משחק ←
           </button>
+          <HelpButton />
         </div>
       )
     }
@@ -485,6 +487,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
             חזור לתפריט
           </button>
         </div>
+        <HelpButton />
       </div>
     )
   }

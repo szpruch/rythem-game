@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ref, onValue, off, set, get, remove } from 'firebase/database'
 import { db, getPlayerId, genRoomId, EMPTY_HINTS } from '../../firebase'
+import HelpButton from '../HelpButton'
 
 const cardCls = 'bg-gray-900 border border-gray-700 rounded-2xl p-4 flex flex-col gap-3'
 
@@ -41,22 +42,20 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
       const now = Date.now()
       const allEntries = Object.entries(snap.val())
 
-      // Delete zombie rooms: all players disconnected >60s ago, or room too old
-      allEntries.forEach(([id, r]) => {
+      function isZombie(r) {
         const playerVals = Object.values(r.players || {})
         const allGone = playerVals.length > 0 && playerVals.every(p => p.disconnectedAt && now - p.disconnectedAt > DISCONNECT_TIMEOUT)
         const tooOld = (now - (r.createdAt || 0)) > MAX_AGE
-        if (allGone || tooOld) remove(ref(db, `rooms/${id}`))
-      })
+        const staleTurn = r.turnStartedAt && (now - r.turnStartedAt) > 60 * 60 * 1000
+        return allGone || tooOld || staleTurn || playerVals.length === 0
+      }
+
+      // Delete zombie rooms
+      allEntries.forEach(([id, r]) => { if (isZombie(r)) remove(ref(db, `rooms/${id}`)) })
 
       const list = allEntries
         .filter(([, r]) => {
-          const playerVals = Object.values(r.players || {})
-          const allGone = playerVals.length > 0 && playerVals.every(p => p.disconnectedAt && now - p.disconnectedAt > DISCONNECT_TIMEOUT)
-          return ['waiting', 'lobby', 'guessing', 'revealed'].includes(r.status)
-            && (now - (r.createdAt || 0)) < MAX_AGE
-            && playerVals.length > 0
-            && !allGone
+          return ['waiting', 'lobby', 'guessing', 'revealed'].includes(r.status) && !isZombie(r)
         })
         .map(([id, r]) => ({ id, ...r }))
       setRooms(list)
@@ -367,6 +366,7 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
         )}
 
       </div>
+      <HelpButton />
     </div>
   )
 }
