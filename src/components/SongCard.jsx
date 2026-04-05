@@ -198,9 +198,9 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
           <p className="text-xl font-bold text-white">{round}</p>
         </div>
 
-        <div className="text-center">
+        <div className="text-center flex-1 mx-2 min-w-0">
           <h2 className="text-xl sm:text-2xl font-bold text-white">נחש את השיר</h2>
-          {playerName && <p className="text-indigo-400 text-sm mt-0.5">{playerName}</p>}
+          {playerName && <p className="text-indigo-400 text-sm mt-0.5 truncate">{playerName}</p>}
         </div>
 
         <div className="flex items-center gap-2">
@@ -327,26 +327,26 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
         </div>
       </div>
 
-      {/* Fixed-height lyric panel */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 h-20 sm:h-24">
-        <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-cyan-900/40 flex flex-col justify-center overflow-hidden">
+      {/* Lyric panel */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-cyan-900/40 flex flex-col justify-center min-h-[4rem]">
           <p className="text-xs text-cyan-500 uppercase tracking-widest mb-1">אנגלית</p>
           {englishCount > 0 ? (
-            <div className="flex flex-col gap-0.5 overflow-hidden">
+            <div className="flex flex-col gap-0.5">
               {englishLines.slice(0, englishCount).map((line, i) => (
-                <p key={i} className="text-gray-200 text-xs sm:text-sm leading-snug truncate">{line}</p>
+                <p key={i} className="text-gray-200 text-xs sm:text-sm leading-snug break-words">{line}</p>
               ))}
             </div>
           ) : (
             <p className="text-gray-600 text-xs italic">לא נחשף</p>
           )}
         </div>
-        <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-violet-900/40 flex flex-col justify-center overflow-hidden">
+        <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-violet-900/40 flex flex-col justify-center min-h-[4rem]">
           <p className="text-xs text-violet-400 uppercase tracking-widest mb-1 text-right">עברית</p>
           {hebrewCount > 0 ? (
-            <div className="flex flex-col gap-0.5 overflow-hidden text-right" dir="rtl">
+            <div className="flex flex-col gap-0.5 text-right" dir="rtl">
               {hebrewLines.slice(0, hebrewCount).map((line, i) => (
-                <p key={i} className="text-gray-200 text-xs sm:text-sm leading-snug truncate">{line}</p>
+                <p key={i} className="text-gray-200 text-xs sm:text-sm leading-snug break-words">{line}</p>
               ))}
             </div>
           ) : (

@@ -186,23 +186,23 @@ export default function SpectatorView({ room, myPlayerId, onLeave }) {
         </div>
 
         {/* Lyric panel */}
-        <div className="grid grid-cols-2 gap-2 h-20 sm:h-24">
-          <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-cyan-900/40 flex flex-col justify-center overflow-hidden">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-cyan-900/40 flex flex-col justify-center min-h-[4rem]">
             <p className="text-xs text-cyan-500 uppercase tracking-widest mb-1">אנגלית</p>
             {(hints.englishCount || 0) > 0 ? (
-              <div className="flex flex-col gap-0.5 overflow-hidden">
+              <div className="flex flex-col gap-0.5">
                 {englishLines.slice(0, hints.englishCount).map((line, i) => (
-                  <p key={i} className="text-gray-200 text-xs sm:text-sm leading-snug truncate">{line}</p>
+                  <p key={i} className="text-gray-200 text-xs sm:text-sm leading-snug break-words">{line}</p>
                 ))}
               </div>
             ) : <p className="text-gray-600 text-xs italic">לא נחשף</p>}
           </div>
-          <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-violet-900/40 flex flex-col justify-center overflow-hidden">
+          <div className="bg-gray-800/60 rounded-2xl px-3 py-2 border border-violet-900/40 flex flex-col justify-center min-h-[4rem]">
             <p className="text-xs text-violet-400 uppercase tracking-widest mb-1 text-right">עברית</p>
             {(hints.hebrewCount || 0) > 0 ? (
-              <div className="flex flex-col gap-0.5 overflow-hidden text-right" dir="rtl">
+              <div className="flex flex-col gap-0.5 text-right" dir="rtl">
                 {hebrewLines.slice(0, hints.hebrewCount).map((line, i) => (
-                  <p key={i} className="text-gray-200 text-xs sm:text-sm leading-snug truncate">{line}</p>
+                  <p key={i} className="text-gray-200 text-xs sm:text-sm leading-snug break-words">{line}</p>
                 ))}
               </div>
             ) : <p className="text-gray-600 text-xs italic text-right">לא נחשף</p>}

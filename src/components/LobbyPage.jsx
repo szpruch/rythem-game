@@ -27,22 +27,22 @@ export default function LobbyPage({ players, currentPlayerIdx, gameMode, cyclesD
               <div
                 key={p.origIdx}
                 dir="rtl"
-                className={`flex items-center justify-between px-4 py-3 rounded-2xl transition-all ${
+                className={`flex items-center justify-between gap-2 px-4 py-3 rounded-2xl transition-all ${
                   isCurrent
                     ? 'bg-indigo-600/30 border-2 border-indigo-500'
                     : 'bg-gray-800 border border-transparent'
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0 overflow-hidden">
                   <span className="text-lg w-6 text-center flex-shrink-0">
                     {rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `${rank + 1}.`}
                   </span>
-                  <span className={`font-bold ${isCurrent ? 'text-white' : 'text-gray-200'}`}>{p.name}</span>
+                  <span className={`font-bold truncate ${isCurrent ? 'text-white' : 'text-gray-200'}`}>{p.name}</span>
                   {isCurrent && (
-                    <span className="text-xs bg-indigo-500 text-white px-2 py-0.5 rounded-full">תורו</span>
+                    <span className="text-xs bg-indigo-500 text-white px-2 py-0.5 rounded-full flex-shrink-0">תורו</span>
                   )}
                 </div>
-                <span className={`font-black text-xl ${p.score >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <span className={`font-black text-xl flex-shrink-0 ${p.score >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {p.score}
                 </span>
               </div>
