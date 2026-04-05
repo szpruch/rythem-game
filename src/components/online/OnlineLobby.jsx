@@ -38,7 +38,7 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
       if (!snap.exists()) { setRooms([]); return }
       const now = Date.now()
       const list = Object.entries(snap.val())
-        .filter(([, r]) => ['waiting', 'lobby', 'guessing', 'revealed'].includes(r.status) && (now - (r.createdAt || 0)) < 12 * 60 * 60 * 1000)
+        .filter(([, r]) => ['waiting', 'lobby', 'guessing', 'revealed'].includes(r.status) && (now - (r.createdAt || 0)) < 12 * 60 * 60 * 1000 && Object.keys(r.players || {}).length > 0)
         .map(([id, r]) => ({ id, ...r }))
       setRooms(list)
     })

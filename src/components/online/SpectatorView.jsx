@@ -20,7 +20,7 @@ function speak(text, lang) {
   window.speechSynthesis.speak(utterance)
 }
 
-export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, onChallengeSubmit, onSkipChallenge, serverTimeOffset = 0 }) {
+export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, onChallengeSubmit, onSkipChallenge, serverTimeOffset = 0, audioUnlocked, onAudioUnlock }) {
   const playerRef = useRef(null)
   const lastAudioId = useRef(null)
   const prevHebrewCount = useRef(0)
@@ -28,7 +28,6 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
   const [isPlaying, setIsPlaying] = useState(false)
   const [challengeWindowOpen, setChallengeWindowOpen] = useState(false)
   const [challengeCountdown, setChallengeCountdown] = useState(5)
-  const [audioUnlocked, setAudioUnlocked] = useState(false)
 
   const timeLimit = room.config?.maxTurnTime || null
   const startedAt = room.turnStartedAt || null
@@ -125,7 +124,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
             onClick={() => {
               playerRef.current?.play()
               setTimeout(() => playerRef.current?.pause(), 300)
-              setAudioUnlocked(true)
+              onAudioUnlock()
             }}
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-10 py-6 rounded-3xl text-2xl shadow-2xl active:scale-95 transition"
             style={{ animation: 'popIn 0.4s ease-out' }}>

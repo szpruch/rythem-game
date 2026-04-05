@@ -17,6 +17,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   const [serverTimeOffset, setServerTimeOffset] = useState(0)
   const [challengeWindowOpen, setChallengeWindowOpen] = useState(false)
   const [challengeCountdown, setChallengeCountdown] = useState(10)
+  const [audioUnlocked, setAudioUnlocked] = useState(false)
 
   useEffect(() => {
     const roomRef = ref(db, `rooms/${roomId}`)
@@ -91,7 +92,13 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   }
 
   async function handleLeave() {
-    await remove(ref(db, `rooms/${roomId}/players/${myPlayerId}`))
+    await runTransaction(ref(db, `rooms/${roomId}`), current => {
+      if (!current) return null
+      const players = { ...(current.players || {}) }
+      delete players[myPlayerId]
+      if (Object.keys(players).length === 0) return null // delete room
+      return { ...current, players }
+    })
     onLeave()
   }
 
@@ -432,7 +439,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       )
     }
     // Spectator
-    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} onSkipChallenge={handleSkipVote} serverTimeOffset={serverTimeOffset} />
+    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} onSkipChallenge={handleSkipVote} serverTimeOffset={serverTimeOffset} audioUnlocked={audioUnlocked} onAudioUnlock={() => setAudioUnlocked(true)} />
   }
 
   // End screen
