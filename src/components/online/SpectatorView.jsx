@@ -236,14 +236,11 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
             style={{ animation: 'popIn 0.3s ease-out' }}>
             <p className="text-gray-500 text-xs uppercase tracking-widest text-center mb-1">מה {activePlayerName} ניחש</p>
             {[
-              { label: 'שיר', guess: results.guessTitle, correct: results.title, partial: false },
-              { label: 'אמן', guess: results.guessArtist, correct: results.artist, partial: results.artistPartial },
-              { label: 'שנה', guess: results.guessYear, correct: results.yearGuessed && results.yearPoints > 0, partial: false },
-            ].map(({ label, guess, correct, partial }) => (
+              { label: 'שיר', guess: results.guessTitle },
+              { label: 'אמן', guess: results.guessArtist },
+              { label: 'שנה', guess: results.guessYear },
+            ].map(({ label, guess }) => (
               <div key={label} className="flex items-center gap-2 text-sm">
-                <span className={`font-bold w-5 text-center flex-shrink-0 ${correct ? 'text-green-400' : partial ? 'text-amber-400' : 'text-red-400'}`}>
-                  {correct ? '✓' : partial ? '~✓' : '✗'}
-                </span>
                 <span className="text-gray-500 w-6 flex-shrink-0 text-right text-xs">{label}</span>
                 <span className="text-white truncate">{guess || '—'}</span>
               </div>
@@ -293,6 +290,18 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
                 )
               })}
             </div>
+            {room.challenge?.status === 'answered' && room.challenge.result && (() => {
+              const cr = room.challenge.result
+              const earned = cr.titlePoints + cr.artistPoints
+              return (
+                <div className="border-t border-orange-800/40 px-3 py-2 flex items-center justify-between" dir="rtl">
+                  <span className="text-orange-400 text-xs font-bold">⚔️ {room.challenge.challengerName}</span>
+                  <span dir="ltr" className={`font-bold text-sm ${cr.net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    −5{earned > 0 ? ` + ${earned}` : ''} = {cr.net >= 0 ? '+' : ''}{cr.net}
+                  </span>
+                </div>
+              )
+            })()}
             <div className="border-t border-gray-700 px-3 py-2 flex items-center justify-between">
               <button
                 onClick={() => isPlaying ? playerRef.current?.pause() : playerRef.current?.play()}

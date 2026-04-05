@@ -63,6 +63,25 @@ export default function HelpModal({ onClose }) {
             </div>
           </section>
 
+          {/* Challenge */}
+          <section className="flex flex-col gap-2">
+            <h3 className="text-orange-400 font-bold text-base uppercase tracking-wide text-right">⚔️ אתגר</h3>
+            <p className="text-gray-300 text-sm leading-relaxed text-right">
+              לאחר שהשחקן הפעיל חושף את תשובתו, שאר השחקנים רואים מה הוא ניחש ויש להם <span className="text-white font-bold">10 שניות</span> לאתגר אותו.
+            </p>
+            <ul className="flex flex-col gap-1.5">
+              <BulletItem emoji="⚡">רק שחקן אחד יכול לאתגר — מי שלוחץ ראשון זוכה</BulletItem>
+              <BulletItem emoji="💸">עלות האתגר: −5 נקודות</BulletItem>
+              <BulletItem emoji="🎯">ניתן להרוויח רק על שדות שהשחקן הפעיל טעה בהם (שיר / אמן)</BulletItem>
+              <BulletItem emoji="😏">אתגור ניחוש מקורב בלבד (~✓) יסומן "אל תהיה קטנוני!"</BulletItem>
+            </ul>
+            <div className="flex flex-col gap-1.5 mt-1">
+              <ScoreRow label="שם שיר נכון (שהפעיל פספס)" points="+10" color="text-green-400" />
+              <ScoreRow label="שם אמן נכון (שהפעיל פספס)" points="+6"  color="text-green-400" />
+              <ScoreRow label="עלות האתגר"                  points="−5"  color="text-red-400" />
+            </div>
+          </section>
+
           {/* Clue penalties */}
           <section className="flex flex-col gap-2">
             <h3 className="text-indigo-400 font-bold text-base uppercase tracking-wide text-right">ניקוד על רמזים</h3>
