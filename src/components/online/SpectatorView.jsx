@@ -274,6 +274,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
             onChallenge={onChallenge}
             onChallengeSubmit={onChallengeSubmit}
             onSkip={onSkipChallenge}
+            hasVotedSkip={!!room.skipVotes?.[myPlayerId]}
             roundScore={results?.roundScore}
             activePlayerName={activePlayerName}
           />

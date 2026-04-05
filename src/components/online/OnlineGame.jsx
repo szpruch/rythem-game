@@ -211,12 +211,23 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       status: 'revealed',
       revealedAt: serverTimestamp(),
       challenge: null,
+      skipVotes: null,
       [`players/${idx}/score`]: prevScore + roundScore,
     })
   }
 
-  async function handleSkipChallenge() {
-    await update(ref(db, `rooms/${roomId}`), { revealedAt: null })
+  async function handleSkipVote() {
+    await runTransaction(ref(db, `rooms/${roomId}`), current => {
+      if (!current || !current.revealedAt) return // window already closed
+      const skipVotes = { ...(current.skipVotes || {}), [myPlayerId]: true }
+      const activeId = current.playerOrder?.[current.turnIndex]
+      const spectatorIds = (current.playerOrder || []).filter(id => id !== activeId)
+      const allVoted = spectatorIds.length > 0 && spectatorIds.every(id => skipVotes[id])
+      if (allVoted) {
+        return { ...current, revealedAt: null, skipVotes: null }
+      }
+      return { ...current, skipVotes }
+    })
   }
 
   async function handleChallenge() {
@@ -330,6 +341,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       currentSong: null,
       challenge: null,
       revealedAt: null,
+      skipVotes: null,
     })
   }
 
@@ -402,12 +414,6 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
             timeLimit={room.config?.maxTurnTime || null}
             startedAt={room.turnStartedAt || null}
           />
-          {challengeWindowOpen && !challengePending && (
-            <button onClick={handleSkipChallenge}
-              className="mt-2 bg-gray-800 hover:bg-gray-700 text-gray-400 font-semibold px-6 py-2 rounded-2xl text-sm transition">
-              דלג על אתגר ↩
-            </button>
-          )}
           {challengePending && (
             <div className="mt-3 animate-pulse" dir="rtl" style={{ animation: 'popIn 0.3s ease-out' }}>
               <p className="text-orange-400 font-bold text-sm text-center">⚔️ {room.challenge.challengerName} מאתגר...</p>
@@ -426,7 +432,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       )
     }
     // Spectator
-    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} onSkipChallenge={handleSkipChallenge} serverTimeOffset={serverTimeOffset} />
+    return <SpectatorView room={room} myPlayerId={myPlayerId} onLeave={handleLeave} onChallenge={handleChallenge} onChallengeSubmit={handleChallengeSubmit} onSkipChallenge={handleSkipVote} serverTimeOffset={serverTimeOffset} />
   }
 
   // End screen
