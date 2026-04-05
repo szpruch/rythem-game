@@ -14,14 +14,15 @@ import YouTubePlayer from '../YouTubePlayer'
 const BG = 'min-h-screen bg-[#0d0d1f] flex flex-col items-center justify-center p-6'
 
 class ErrorBoundary extends Component {
-  constructor(props) { super(props); this.state = { crashed: false } }
-  static getDerivedStateFromError() { return { crashed: true } }
+  constructor(props) { super(props); this.state = { crashed: false, msg: '' } }
+  static getDerivedStateFromError(e) { return { crashed: true, msg: e?.message || String(e) } }
   render() {
     if (this.state.crashed) return (
       <div className={BG} dir="rtl">
         <div className="flex flex-col items-center gap-4 text-center">
           <p className="text-5xl">⚠️</p>
           <p className="text-white font-bold text-xl">משהו השתבש</p>
+          <p className="text-gray-500 text-xs font-mono px-4 break-all">{this.state.msg}</p>
           <button onClick={() => window.location.reload()}
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-2xl text-lg transition">
             רענן דף

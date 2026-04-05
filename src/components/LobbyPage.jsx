@@ -7,6 +7,8 @@ export default function LobbyPage({ players, currentPlayerIdx, gameMode, cyclesD
 
   const currentPlayer = players[currentPlayerIdx]
 
+  if (!currentPlayer || !gameMode) return null
+
   const progressText = gameMode.type === 'rounds'
     ? `סיבוב ${cyclesDone + 1} מתוך ${gameMode.value}`
     : `יעד: ${gameMode.value} ניקוד`
