@@ -51,6 +51,65 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     }
   }, [room?.players?.[myPlayerId]?.score])
 
+  // Handle player disconnects mid-game
+  useEffect(() => {
+    if (!room || room.status === 'finished' || room.status === 'waiting') return
+
+    const currentPlayers = room.players || {}
+    const order = room.playerOrder || []
+    const remainingIds = order.filter(id => currentPlayers[id])
+
+    // Only 1 (or 0) players left → end game immediately
+    if (remainingIds.length < 2) {
+      if (remainingIds[0] === myPlayerId) {
+        update(ref(db, `rooms/${roomId}`), { status: 'finished' })
+      }
+      return
+    }
+
+    // Active player left mid-turn → first remaining player advances the turn
+    const activeId = order[room.turnIndex]
+    if (activeId && !currentPlayers[activeId] && remainingIds[0] === myPlayerId) {
+      advanceAfterDisconnect(currentPlayers, remainingIds)
+    }
+  }, [JSON.stringify(Object.keys(room?.players || {}).sort()), room?.status])
+
+  async function advanceAfterDisconnect(currentPlayers, remainingIds) {
+    const order = room.playerOrder || []
+    // Find next turn index with a connected player
+    let next = (room.turnIndex + 1) % order.length
+    for (let i = 0; i < order.length; i++) {
+      if (currentPlayers[order[next]]) break
+      next = (next + 1) % order.length
+    }
+    const newCycles = next <= room.turnIndex ? room.cyclesDone + 1 : room.cyclesDone
+    const newUsedUrls = room.currentSong
+      ? [...(room.usedUrls || []), room.currentSong.youtube_url]
+      : (room.usedUrls || [])
+
+    if (room.config.gameMode.type === 'rounds' && newCycles >= room.config.gameMode.value) {
+      await update(ref(db, `rooms/${roomId}`), { status: 'finished', usedUrls: newUsedUrls })
+      return
+    }
+    if (room.config.gameMode.type === 'score') {
+      const maxScore = Math.max(...remainingIds.map(id => currentPlayers[id]?.score || 0))
+      if (maxScore >= room.config.gameMode.value) {
+        await update(ref(db, `rooms/${roomId}`), { status: 'finished', usedUrls: newUsedUrls })
+        return
+      }
+    }
+    await update(ref(db, `rooms/${roomId}`), {
+      turnIndex: next,
+      cyclesDone: newCycles,
+      usedUrls: newUsedUrls,
+      revealed: false,
+      results: null,
+      hints: EMPTY_HINTS,
+      status: 'lobby',
+      currentSong: null,
+    })
+  }
+
   // Reset local revealed when a new turn starts
   useEffect(() => {
     if (room?.status === 'guessing') setLocalRevealed(false)

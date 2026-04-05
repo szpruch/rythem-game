@@ -382,8 +382,8 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
           </div>
         ) : (
           <div className="bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden" dir="rtl">
-            {/* Result rows: icon | label | guess → correct | points */}
-            <div className="flex flex-col gap-1.5 px-3 pt-3 pb-2">
+            {/* Result rows */}
+            <div className="flex flex-col gap-2 px-3 pt-3 pb-2">
               {[
                 { label: 'שיר', guess: guessTitle, answer: song.song_title, correct: results?.title, points: results?.title ? '+10' : '0' },
                 { label: 'אמן', guess: guessArtist, answer: artistDisplay, correct: results?.artist, partial: results?.artistPartial, points: results?.artist ? '+6' : results?.artistPartial ? '+3' : '0' },
@@ -391,13 +391,17 @@ export default function SongCard({ song, revealed, onDone, onNext, round, totalS
               ].map(({ label, guess, answer, correct, partial, points }) => {
                 const ptColor = points?.startsWith('+') && points !== '+0' ? (partial ? 'text-amber-400' : 'text-green-400') : points === '0' || points === '+0' ? 'text-gray-500' : 'text-red-400'
                 return (
-                  <div key={label} className="flex items-center gap-1 text-xs">
-                    <span className={`font-bold flex-shrink-0 w-5 text-center ${correct ? 'text-green-400' : partial ? 'text-amber-400' : 'text-red-400'}`}>{correct ? '✓' : partial ? '~✓' : '✗'}</span>
-                    <span className="text-gray-400 flex-shrink-0 w-6 text-right">{label}</span>
-                    <span className="text-gray-500 flex-1 text-right truncate">{guess || '—'}</span>
-                    <span className="text-gray-600 flex-shrink-0 px-1">→</span>
-                    <span className="text-white font-medium flex-1 text-right truncate">{answer}</span>
-                    <span dir="ltr" className={`font-bold flex-shrink-0 w-7 text-left ${ptColor}`}>{points}</span>
+                  <div key={label} className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1 text-xs">
+                      <span className={`font-bold flex-shrink-0 w-5 text-center ${correct ? 'text-green-400' : partial ? 'text-amber-400' : 'text-red-400'}`}>{correct ? '✓' : partial ? '~✓' : '✗'}</span>
+                      <span className="text-gray-400 flex-shrink-0 w-6 text-right">{label}</span>
+                      <span className="text-white font-medium flex-1 text-right truncate">{answer}</span>
+                      <span dir="ltr" className={`font-bold flex-shrink-0 w-7 text-left ${ptColor}`}>{points}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs pr-5" dir="rtl">
+                      <span className="text-gray-600 flex-shrink-0">ניחשת:</span>
+                      <span className="text-gray-400 truncate">{guess || '—'}</span>
+                    </div>
                   </div>
                 )
               })}
