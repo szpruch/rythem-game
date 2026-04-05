@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ref, onValue, off, set, get } from 'firebase/database'
+import { ref, onValue, off, set, get, remove } from 'firebase/database'
 import { db, getPlayerId, genRoomId, EMPTY_HINTS } from '../../firebase'
 
 const cardCls = 'bg-gray-900 border border-gray-700 rounded-2xl p-4 flex flex-col gap-3'
@@ -34,11 +34,30 @@ export default function OnlineLobby({ songsHe, songsEn, csvYearsHe, csvYearsEn, 
   // Subscribe to open rooms
   useEffect(() => {
     const roomsRef = ref(db, 'rooms')
+    const DISCONNECT_TIMEOUT = 60000
+    const MAX_AGE = 12 * 60 * 60 * 1000
     const handler = onValue(roomsRef, snap => {
       if (!snap.exists()) { setRooms([]); return }
       const now = Date.now()
-      const list = Object.entries(snap.val())
-        .filter(([, r]) => ['waiting', 'lobby', 'guessing', 'revealed'].includes(r.status) && (now - (r.createdAt || 0)) < 12 * 60 * 60 * 1000 && Object.keys(r.players || {}).length > 0)
+      const allEntries = Object.entries(snap.val())
+
+      // Delete zombie rooms: all players disconnected >60s ago, or room too old
+      allEntries.forEach(([id, r]) => {
+        const playerVals = Object.values(r.players || {})
+        const allGone = playerVals.length > 0 && playerVals.every(p => p.disconnectedAt && now - p.disconnectedAt > DISCONNECT_TIMEOUT)
+        const tooOld = (now - (r.createdAt || 0)) > MAX_AGE
+        if (allGone || tooOld) remove(ref(db, `rooms/${id}`))
+      })
+
+      const list = allEntries
+        .filter(([, r]) => {
+          const playerVals = Object.values(r.players || {})
+          const allGone = playerVals.length > 0 && playerVals.every(p => p.disconnectedAt && now - p.disconnectedAt > DISCONNECT_TIMEOUT)
+          return ['waiting', 'lobby', 'guessing', 'revealed'].includes(r.status)
+            && (now - (r.createdAt || 0)) < MAX_AGE
+            && playerVals.length > 0
+            && !allGone
+        })
         .map(([id, r]) => ({ id, ...r }))
       setRooms(list)
     })
