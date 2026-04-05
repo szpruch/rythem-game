@@ -87,7 +87,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
     prevEnglishCount.current = count
   }, [hints.englishCount])
 
-  // Challenge countdown window (5s after reveal)
+  // Challenge countdown window (10s after reveal)
   useEffect(() => {
     const revealedAt = room.revealedAt
     if (!revealedAt || room.challenge || room.status !== 'revealed') {
@@ -95,7 +95,7 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
       return
     }
     const tick = () => {
-      const ms = 5000 - (Date.now() - revealedAt)
+      const ms = 10000 - (Date.now() - revealedAt)
       if (ms <= 0) { setChallengeWindowOpen(false); return }
       setChallengeWindowOpen(true)
       setChallengeCountdown(Math.ceil(ms / 1000))
@@ -229,6 +229,27 @@ export default function SpectatorView({ room, myPlayerId, onLeave, onChallenge, 
             ) : <p className="text-gray-600 text-xs italic text-right">לא נחשף</p>}
           </div>
         </div>
+
+        {/* Active player's guesses — visible during challenge window so spectators can decide */}
+        {challengeWindowOpen && results && (
+          <div className="bg-gray-900/80 border border-gray-700 rounded-2xl px-3 py-2 flex flex-col gap-1" dir="rtl"
+            style={{ animation: 'popIn 0.3s ease-out' }}>
+            <p className="text-gray-500 text-xs uppercase tracking-widest text-center mb-1">מה {activePlayerName} ניחש</p>
+            {[
+              { label: 'שיר', guess: results.guessTitle, correct: results.title, partial: false },
+              { label: 'אמן', guess: results.guessArtist, correct: results.artist, partial: results.artistPartial },
+              { label: 'שנה', guess: results.guessYear, correct: results.yearGuessed && results.yearPoints > 0, partial: false },
+            ].map(({ label, guess, correct, partial }) => (
+              <div key={label} className="flex items-center gap-2 text-sm">
+                <span className={`font-bold w-5 text-center flex-shrink-0 ${correct ? 'text-green-400' : partial ? 'text-amber-400' : 'text-red-400'}`}>
+                  {correct ? '✓' : partial ? '~✓' : '✗'}
+                </span>
+                <span className="text-gray-500 w-6 flex-shrink-0 text-right text-xs">{label}</span>
+                <span className="text-white truncate">{guess || '—'}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Challenge panel — visible to non-active players during window or while pending/answered */}
         {(challengeWindowOpen || room.challenge) && (

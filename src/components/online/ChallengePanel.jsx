@@ -17,10 +17,10 @@ export default function ChallengePanel({
   // ── 1. Challenge window: countdown + button ─────────────────────────
   if (windowOpen && !challenge) {
     if (!hasChallengeable) return null
-    const clr = countdown <= 2 ? 'text-red-400' : countdown <= 3 ? 'text-yellow-400' : 'text-green-400'
+    const clr = countdown <= 3 ? 'text-red-400' : countdown <= 6 ? 'text-yellow-400' : 'text-green-400'
     return (
       <div className="flex flex-col items-center gap-3">
-        <div className={`text-7xl font-black tabular-nums ${clr} ${countdown <= 2 ? 'animate-pulse' : ''}`}>
+        <div className={`text-7xl font-black tabular-nums ${clr} ${countdown <= 3 ? 'animate-pulse' : ''}`}>
           {countdown}
         </div>
         <button onClick={onChallenge}
