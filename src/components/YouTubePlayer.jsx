@@ -100,7 +100,14 @@ const YouTubePlayer = forwardRef(function YouTubePlayer({ videoId, onPlayStateCh
     }
   }, [videoId])
 
-  return <div ref={containerRef} style={{ position: 'fixed', top: '-9999px', left: '-9999px', width: 1, height: 1 }} />
+  // Outer div is React's stable anchor. YouTube replaces the inner div with an
+  // iframe — if React tracked the inner node directly, unmounting would throw
+  // "removeChild: node is not a child" because YouTube already replaced it.
+  return (
+    <div style={{ position: 'fixed', top: '-9999px', left: '-9999px', width: 1, height: 1 }}>
+      <div ref={containerRef} />
+    </div>
+  )
 })
 
 export default YouTubePlayer
