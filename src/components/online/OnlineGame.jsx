@@ -44,6 +44,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   // Spectator audio player — lives in OnlineGame so it persists across turns
   const spectatorPlayerRef = useRef(null)
   const [spectatorVideoId, setSpectatorVideoId] = useState(null)
+  const [spectatorPlayerMounted, setSpectatorPlayerMounted] = useState(false)
   const [spectatorIsPlaying, setSpectatorIsPlaying] = useState(false)
   const [audioUnlocked, setAudioUnlocked] = useState(false)
 
@@ -207,18 +208,21 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     if (room?.status === 'guessing') setLocalRevealed(false)
   }, [room?.status, room?.currentSong?.youtube_url])
 
-  // Track current song videoId for spectator player (keep last known so player stays mounted between turns)
+  // Track current song videoId for spectator player.
+  // Once the player is mounted it NEVER unmounts — the iOS audio context stays
+  // unlocked for the whole game. We only update the videoId when spectating.
   useEffect(() => {
     if (!room) return
     const activeId = room.playerOrder?.[room.turnIndex]
     const iAm = activeId === myPlayerId
-    if (iAm) {
-      setSpectatorVideoId(null) // unmount spectator player when it's my turn
-      setAudioUnlocked(false)
-    } else if (room.currentSong?.youtube_url) {
-      setSpectatorVideoId(getVideoId(room.currentSong.youtube_url))
+    if (!iAm && room.currentSong?.youtube_url) {
+      const vid = getVideoId(room.currentSong.youtube_url)
+      if (vid) {
+        setSpectatorVideoId(vid)
+        setSpectatorPlayerMounted(true) // once true, never goes back to false
+      }
     }
-    // When currentSong is null (between turns) we keep the last videoId so the iframe stays mounted
+    // When iAm (active turn): keep last videoId, keep player mounted, keep audioUnlocked
   }, [room?.currentSong?.youtube_url, room?.playerOrder?.[room?.turnIndex]])
 
   // Transparent audio unlock — retries on every touch until the YT player is ready.
@@ -226,7 +230,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
   // finished loading (readyRef = false), play() silently returned and the listener
   // was gone — audio stayed locked. Now we keep listening until it actually succeeds.
   useEffect(() => {
-    if (audioUnlocked || spectatorVideoId === null) return
+    if (audioUnlocked || !spectatorPlayerMounted) return
     function unlock() {
       if (!spectatorPlayerRef.current?.isReady()) return // player not ready yet — wait for next touch
       spectatorPlayerRef.current.play()
@@ -243,7 +247,7 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       document.removeEventListener('touchstart', unlock)
       document.removeEventListener('click', unlock)
     }
-  }, [audioUnlocked, spectatorVideoId])
+  }, [audioUnlocked, spectatorPlayerMounted])
 
   if (!room) return (
     <div className={BG}><p className="text-gray-400 animate-pulse">טוען...</p></div>
@@ -573,8 +577,9 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
 
   return (
     <ErrorBoundary>
-      {/* Persistent spectator audio player — stays mounted across turns so iOS stays unlocked */}
-      {spectatorVideoId && (
+      {/* Spectator audio player — mounts on first spectator turn and NEVER unmounts.
+          Keeping the same iframe alive across turns preserves the iOS audio unlock. */}
+      {spectatorPlayerMounted && (
         <YouTubePlayer
           key="spectator-player"
           ref={spectatorPlayerRef}
