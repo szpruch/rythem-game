@@ -208,6 +208,21 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     if (room?.status === 'guessing') setLocalRevealed(false)
   }, [room?.status, room?.currentSong?.youtube_url])
 
+  // Mount the spectator player early — during the lobby phase — so it has time to
+  // load before spectating begins. Any touch in the lobby (e.g. the active player
+  // pressing "מוכן!") will fire the unlock listener and reliably unlock audio from
+  // round 1 instead of a random later round.
+  useEffect(() => {
+    if (!room || spectatorPlayerMounted) return
+    const songs = room.config?.language === 'en' ? songsEn : songsHe
+    const firstUrl = songs[0]?.youtube_url
+    const vid = firstUrl ? getVideoId(firstUrl) : null
+    if (vid) {
+      setSpectatorVideoId(vid)
+      setSpectatorPlayerMounted(true)
+    }
+  }, [!!room])
+
   // Track current song videoId for spectator player.
   // Once the player is mounted it NEVER unmounts — the iOS audio context stays
   // unlocked for the whole game. We only update the videoId when spectating.
