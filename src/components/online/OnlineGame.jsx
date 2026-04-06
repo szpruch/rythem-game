@@ -221,11 +221,15 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
     // When currentSong is null (between turns) we keep the last videoId so the iframe stays mounted
   }, [room?.currentSong?.youtube_url, room?.playerOrder?.[room?.turnIndex]])
 
-  // Transparent audio unlock — fires on first tap anywhere (no button needed)
+  // Transparent audio unlock — retries on every touch until the YT player is ready.
+  // Using { once: true } caused a race: if the first touch arrived before the player
+  // finished loading (readyRef = false), play() silently returned and the listener
+  // was gone — audio stayed locked. Now we keep listening until it actually succeeds.
   useEffect(() => {
     if (audioUnlocked || spectatorVideoId === null) return
     function unlock() {
-      spectatorPlayerRef.current?.play()
+      if (!spectatorPlayerRef.current?.isReady()) return // player not ready yet — wait for next touch
+      spectatorPlayerRef.current.play()
       setTimeout(() => spectatorPlayerRef.current?.pause(), 300)
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel()
@@ -233,8 +237,8 @@ export default function OnlineGame({ roomId, myPlayerId, songsHe, songsEn, onLea
       }
       setAudioUnlocked(true)
     }
-    document.addEventListener('touchstart', unlock, { once: true, passive: true })
-    document.addEventListener('click', unlock, { once: true })
+    document.addEventListener('touchstart', unlock, { passive: true })
+    document.addEventListener('click', unlock)
     return () => {
       document.removeEventListener('touchstart', unlock)
       document.removeEventListener('click', unlock)

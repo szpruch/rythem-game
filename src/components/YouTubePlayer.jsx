@@ -27,6 +27,7 @@ const YouTubePlayer = forwardRef(function YouTubePlayer({ videoId, onPlayStateCh
   const currentVideoIdRef = useRef(videoId)
 
   useImperativeHandle(ref, () => ({
+    isReady() { return !!(playerRef.current && readyRef.current) },
     playForSeconds(seconds) {
       if (!playerRef.current || !readyRef.current) return
       clearTimeout(timerRef.current)
