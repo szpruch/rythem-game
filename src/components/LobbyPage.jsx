@@ -60,25 +60,17 @@ export default function LobbyPage({ players, currentPlayerIdx, gameMode, cyclesD
           <p className="text-3xl font-black text-white">{currentPlayer.name}</p>
         </div>
 
-        {onReady ? (
-          <button
-            onClick={onReady}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl text-2xl transition shadow-lg shadow-indigo-600/30"
-          >
-            מוכן! 🎵
-          </button>
-        ) : (
-          <div className="flex flex-col items-center gap-3">
-            <div className="text-center text-gray-400 text-sm animate-pulse">
-              ממתין ל-{waitingFor}...
-            </div>
-            <button
-              onClick={() => {}}
-              className="bg-indigo-600/40 hover:bg-indigo-600/60 text-white font-black py-4 rounded-2xl text-2xl transition w-full"
-            >
-              מוכן! 🎵
-            </button>
-          </div>
+        <button
+          onClick={onReady ?? (() => {})}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl text-2xl transition shadow-lg shadow-indigo-600/30"
+        >
+          מוכן! 🎵
+        </button>
+
+        {!onReady && (
+          <p className="text-center text-gray-500 text-sm -mt-2 animate-pulse">
+            ממתין ל-{waitingFor}...
+          </p>
         )}
 
       </div>
