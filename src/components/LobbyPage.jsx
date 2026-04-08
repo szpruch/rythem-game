@@ -69,14 +69,14 @@ export default function LobbyPage({ players, currentPlayerIdx, gameMode, cyclesD
           </button>
         ) : (
           <div className="flex flex-col items-center gap-3">
-            <div className="text-center text-gray-400 text-lg animate-pulse">
+            <div className="text-center text-gray-400 text-sm animate-pulse">
               ממתין ל-{waitingFor}...
             </div>
             <button
               onClick={() => {}}
-              className="bg-gray-800 hover:bg-gray-700 border border-gray-600 text-gray-300 font-bold py-3 px-6 rounded-2xl text-base transition"
+              className="bg-indigo-600/40 hover:bg-indigo-600/60 text-white font-black py-4 rounded-2xl text-2xl transition w-full"
             >
-              🔊 הכן שמע
+              מוכן! 🎵
             </button>
           </div>
         )}
